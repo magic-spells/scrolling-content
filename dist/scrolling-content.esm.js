@@ -49,8 +49,8 @@ class ScrollingContent extends HTMLElement {
     _.loopDistance = 0; // distance to move before wrapping back to start
     _.rafId = null;
     _.resizeHandler = () => _.handleResize();
-    _.scrollDirection = null; // 'horizontal', 'vertical', or null
-    _.directionThreshold = 10; // pixels of movement before determining direction
+    _.touchDirection = 0; // 0: unknown, 1: horizontal, -1: vertical
+    _.directionThreshold = 3; // pixels of movement before determining direction
   }
 
   connectedCallback() {
@@ -153,6 +153,14 @@ class ScrollingContent extends HTMLElement {
       _.isHoverPaused = false;
       if (!_.isDragging) _.start();
     });
+    
+    // Touch events for better mobile support
+    _.track.addEventListener('touchstart', (e) => _.onTouchStart(e), { passive: false });
+    _.track.addEventListener('touchmove', (e) => _.onTouchMove(e), { passive: false });
+    _.track.addEventListener('touchend', (e) => _.onTouchEnd(e));
+    _.track.addEventListener('touchcancel', (e) => _.onTouchEnd(e));
+    
+    // Pointer events for desktop/mouse
     _.track.addEventListener('pointerdown', (e) => _.onPointerDown(e));
     window.addEventListener('pointermove', (e) => _.onPointerMove(e));
     window.addEventListener('pointerup', (e) => _.onPointerUp(e));
@@ -208,13 +216,74 @@ class ScrollingContent extends HTMLElement {
     return window.innerWidth <= this.breakpoint ? this.mobileSpeed : this.desktopSpeed;
   }
 
+  onTouchStart(e) {
+    const _ = this;
+    if (e.touches.length !== 1) return; // only handle single touch
+    
+    _.isDragging = true;
+    _.dragStartX = e.touches[0].screenX;
+    _.dragStartY = e.touches[0].screenY;
+    _.startOffset = _.offsetX;
+    _.touchDirection = 0; // reset direction
+    _.stop();
+  }
+
+  onTouchMove(e) {
+    const _ = this;
+    if (!_.isDragging || e.touches.length !== 1) return;
+
+    // if already determined to be horizontal, prevent default and scroll
+    if (_.touchDirection === 1) {
+      e.preventDefault();
+      const diffX = e.touches[0].screenX - _.dragStartX;
+      
+      _.offsetX = _.startOffset + diffX;
+      while (_.offsetX <= -_.loopDistance) _.offsetX += _.loopDistance;
+      while (_.offsetX > 0) _.offsetX -= _.loopDistance;
+      _.track.style.transform = `translateX(${_.offsetX}px)`;
+      return;
+    }
+
+    // calculate movement distances to determine direction
+    const deltaX = Math.abs(_.dragStartX - e.touches[0].screenX);
+    const deltaY = Math.abs(_.dragStartY - e.touches[0].screenY);
+
+    // determine direction with bias toward horizontal (like your carousel)
+    if (deltaX * 1.15 > deltaY && (deltaX > _.directionThreshold || deltaY > _.directionThreshold)) {
+      // horizontal movement detected
+      _.touchDirection = 1;
+      e.preventDefault();
+      return;
+    } else if (deltaY > _.directionThreshold && deltaX <= deltaY) {
+      // vertical movement detected - cancel drag and allow page scroll
+      _.touchDirection = -1;
+      _.isDragging = false;
+      if (!_.isHoverPaused) _.start();
+      return;
+    }
+
+    // direction not yet determined - prevent default to avoid premature page scroll
+    e.preventDefault();
+  }
+
+  onTouchEnd(e) {
+    const _ = this;
+    if (!_.isDragging) return;
+    _.isDragging = false;
+    _.touchDirection = 0;
+    if (!_.isHoverPaused) _.start();
+  }
+
   onPointerDown(e) {
     const _ = this;
+    // Skip if this is a touch event (handled by touch handlers)
+    if (e.pointerType === 'touch') return;
+    
     _.isDragging = true;
     _.dragStartX = e.clientX;
     _.dragStartY = e.clientY; // store initial Y position
     _.startOffset = _.offsetX;
-    _.scrollDirection = null; // reset direction detection
+    _.touchDirection = 0; // reset direction detection
     _.stop();
     _.track.setPointerCapture(e.pointerId);
   }
@@ -222,57 +291,30 @@ class ScrollingContent extends HTMLElement {
   onPointerMove(e) {
     const _ = this;
     if (!_.isDragging) return;
+    // Skip if this is a touch event (handled by touch handlers)
+    if (e.pointerType === 'touch') return;
 
     // calculate movement distances
     const diffX = e.clientX - _.dragStartX;
-    const diffY = e.clientY - _.dragStartY;
+    e.clientY - _.dragStartY;
 
-    // determine scroll direction if not yet determined
-    if (!_.scrollDirection) {
-      const absX = Math.abs(diffX);
-      const absY = Math.abs(diffY);
+    _.offsetX = _.startOffset + diffX;
 
-      // only determine direction after minimum threshold movement
-      if (absX > _.directionThreshold || absY > _.directionThreshold) {
-        _.scrollDirection = absX > absY ? 'horizontal' : 'vertical';
-      }
-    }
+    // normalize offset to stay within bounds
+    while (_.offsetX <= -_.loopDistance) _.offsetX += _.loopDistance;
+    while (_.offsetX > 0) _.offsetX -= _.loopDistance;
 
-    // handle horizontal scrolling
-    if (_.scrollDirection === 'horizontal') {
-      // prevent default to stop page scroll
-      if (e.cancelable) {
-        e.preventDefault();
-      }
-
-      _.offsetX = _.startOffset + diffX;
-
-      // normalize offset to stay within bounds
-      while (_.offsetX <= -_.loopDistance) _.offsetX += _.loopDistance;
-      while (_.offsetX > 0) _.offsetX -= _.loopDistance;
-
-      _.track.style.transform = `translateX(${_.offsetX}px)`;
-    } else if (_.scrollDirection === 'vertical') {
-      // release pointer capture to allow normal page scrolling
-      try {
-        _.track.releasePointerCapture(e.pointerId);
-      } catch {}
-      _.isDragging = false;
-      _.scrollDirection = null;
-      if (!_.isHoverPaused) _.start();
-    } else {
-      // direction not yet determined - prevent default to avoid premature page scroll
-      if (e.cancelable) {
-        e.preventDefault();
-      }
-    }
+    _.track.style.transform = `translateX(${_.offsetX}px)`;
   }
 
   onPointerUp(e) {
     const _ = this;
     if (!_.isDragging) return;
+    // Skip if this is a touch event (handled by touch handlers)
+    if (e.pointerType === 'touch') return;
+    
     _.isDragging = false;
-    _.scrollDirection = null; // reset direction
+    _.touchDirection = 0; // reset direction
     try {
       _.track.releasePointerCapture(e.pointerId);
     } catch {
