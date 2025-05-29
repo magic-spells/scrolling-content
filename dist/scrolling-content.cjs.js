@@ -44,11 +44,14 @@ class ScrollingContent extends HTMLElement {
     _.prevTime = 0;
     _.offsetX = 0;
     _.dragStartX = 0;
+    _.dragStartY = 0; // track initial Y position for direction detection
     _.startOffset = 0;
     _.containerWidth = 0;
     _.loopDistance = 0; // distance to move before wrapping back to start
     _.rafId = null;
     _.resizeHandler = () => _.handleResize();
+    _.scrollDirection = null; // 'horizontal', 'vertical', or null
+    _.directionThreshold = 10; // pixels of movement before determining direction
   }
 
   connectedCallback() {
@@ -210,7 +213,9 @@ class ScrollingContent extends HTMLElement {
     const _ = this;
     _.isDragging = true;
     _.dragStartX = e.clientX;
+    _.dragStartY = e.clientY; // store initial Y position
     _.startOffset = _.offsetX;
+    _.scrollDirection = null; // reset direction detection
     _.stop();
     _.track.setPointerCapture(e.pointerId);
   }
@@ -219,21 +224,56 @@ class ScrollingContent extends HTMLElement {
     const _ = this;
     if (!_.isDragging) return;
 
-    // calculate drag distance
-    const diff = e.clientX - _.dragStartX;
-    _.offsetX = _.startOffset + diff;
+    // calculate movement distances
+    const diffX = e.clientX - _.dragStartX;
+    const diffY = e.clientY - _.dragStartY;
 
-    // normalize offset to stay within bounds
-    while (_.offsetX <= -_.loopDistance) _.offsetX += _.loopDistance;
-    while (_.offsetX > 0) _.offsetX -= _.loopDistance;
+    // determine scroll direction if not yet determined
+    if (!_.scrollDirection) {
+      const absX = Math.abs(diffX);
+      const absY = Math.abs(diffY);
 
-    _.track.style.transform = `translateX(${_.offsetX}px)`;
+      // only determine direction after minimum threshold movement
+      if (absX > _.directionThreshold || absY > _.directionThreshold) {
+        _.scrollDirection = absX > absY ? 'horizontal' : 'vertical';
+      }
+    }
+
+    // handle horizontal scrolling
+    if (_.scrollDirection === 'horizontal') {
+      // prevent default to stop page scroll
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+
+      _.offsetX = _.startOffset + diffX;
+
+      // normalize offset to stay within bounds
+      while (_.offsetX <= -_.loopDistance) _.offsetX += _.loopDistance;
+      while (_.offsetX > 0) _.offsetX -= _.loopDistance;
+
+      _.track.style.transform = `translateX(${_.offsetX}px)`;
+    } else if (_.scrollDirection === 'vertical') {
+      // release pointer capture to allow normal page scrolling
+      try {
+        _.track.releasePointerCapture(e.pointerId);
+      } catch {}
+      _.isDragging = false;
+      _.scrollDirection = null;
+      if (!_.isHoverPaused) _.start();
+    } else {
+      // direction not yet determined - prevent default to avoid premature page scroll
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+    }
   }
 
   onPointerUp(e) {
     const _ = this;
     if (!_.isDragging) return;
     _.isDragging = false;
+    _.scrollDirection = null; // reset direction
     try {
       _.track.releasePointerCapture(e.pointerId);
     } catch {
