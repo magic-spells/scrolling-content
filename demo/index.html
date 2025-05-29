@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <title>Scrolling Content Demo - @magic-spells/scrolling-content</title>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background: #f5f5f5;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 2rem;
+        color: #2c3e50;
+        font-size: 2.5rem;
+        font-weight: 300;
+      }
+
+      .demo-section {
+        margin: 3rem 0;
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .demo-section h2 {
+        margin-bottom: 1rem;
+        color: #34495e;
+        font-size: 1.5rem;
+        font-weight: 400;
+      }
+
+      .demo-section p {
+        margin-bottom: 1.5rem;
+        color: #666;
+      }
+
+      /* Scrolling content styling */
+      scrolling-content {
+        width: 100%;
+        height: 60px;
+        display: block;
+        --scrolling-content-gap: 1rem;
+      }
+
+
+      /* Content item styling */
+      .content-item {
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        white-space: nowrap;
+        font-weight: 500;
+        font-size: 0.9rem;
+      }
+
+      /* Default theme */
+      .basic-demo {
+        --scrolling-content-gap: 1rem;
+      }
+      .basic-demo .content-item {
+        background: #667eea;
+        color: white;
+      }
+
+      /* Logo theme */
+      .logo-demo {
+        --scrolling-content-gap: 2rem;
+      }
+      .logo-demo .content-item {
+        background: #f8f9fa;
+        color: #2c3e50;
+        border: 1px solid #dee2e6;
+        font-weight: 600;
+      }
+
+      /* Fast theme */
+      .fast-demo {
+        --scrolling-content-gap: 0.5rem;
+      }
+      .fast-demo .content-item {
+        background: #ff6b6b;
+        color: white;
+        font-weight: 600;
+      }
+
+      /* Slow theme */
+      .slow-demo {
+        --scrolling-content-gap: 3rem;
+      }
+      .slow-demo .content-item {
+        background: #20bf6b;
+        color: white;
+        padding: 1rem 2rem;
+        font-size: 1rem;
+      }
+
+      .code-block {
+        background: #2d3748;
+        color: #e2e8f0;
+        padding: 1rem;
+        border-radius: 6px;
+        margin: 1rem 0;
+        overflow-x: auto;
+        font-family:
+          'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+        font-size: 0.9rem;
+      }
+
+      .features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        margin: 2rem 0;
+      }
+
+      .feature {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 8px;
+        border-left: 4px solid #667eea;
+      }
+
+      .feature h3 {
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+      }
+
+      .feature p {
+        color: #666;
+        margin: 0;
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          padding: 1rem;
+        }
+
+        h1 {
+          font-size: 2rem;
+        }
+
+        .content-item {
+          padding: 0.5rem 1rem;
+          font-size: 0.8rem;
+        }
+
+        .slow-demo .content-item {
+          padding: 0.75rem 1.5rem;
+          font-size: 0.9rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Scrolling Content Demo</h1>
+
+      <section>
+        <div class="demo-section">
+          <h2>Basic Example</h2>
+          <p>
+            A simple scrolling content with default settings. Hover to pause, drag to scroll
+            manually.
+          </p>
+
+          <scrolling-content class="basic-demo" data-mobile-speed="40" data-desktop-speed="60">
+            <scrolling-track>
+              <div class="content-item">🚀 Web Components</div>
+              <div class="content-item">⚡ Lightning Fast</div>
+              <div class="content-item">🎨 Fully Customizable</div>
+              <div class="content-item">📱 Mobile Friendly</div>
+              <div class="content-item">♿ Accessible</div>
+              <div class="content-item">🔧 Easy to Use</div>
+            </scrolling-track>
+          </scrolling-content>
+
+          <pre class="code-block"><code>&lt;scrolling-content data-mobile-speed="40" data-desktop-speed="60"&gt;
+  &lt;scrolling-track&gt;
+    &lt;div&gt;🚀 Web Components&lt;/div&gt;
+    &lt;div&gt;⚡ Lightning Fast&lt;/div&gt;
+    &lt;div&gt;🎨 Fully Customizable&lt;/div&gt;
+    &lt;!-- Component automatically wraps content and duplicates it --&gt;
+  &lt;/scrolling-track&gt;
+&lt;/scrolling-content&gt;
+
+&lt;!-- Control gap with CSS --&gt;
+&lt;style&gt;
+  scrolling-content {
+    --scrolling-content-gap: 1rem;
+  }
+&lt;/style&gt;</code></pre>
+        </div>
+      </section>
+
+      <section>
+        <div class="demo-section">
+          <h2>Logo Carousel</h2>
+          <p>Perfect for showcasing client logos or partner brands.</p>
+
+          <scrolling-content class="logo-demo" data-mobile-speed="30" data-desktop-speed="50">
+            <scrolling-track>
+              <div class="content-item">APPLE</div>
+              <div class="content-item">GOOGLE</div>
+              <div class="content-item">MICROSOFT</div>
+              <div class="content-item">AMAZON</div>
+              <div class="content-item">META</div>
+              <div class="content-item">NETFLIX</div>
+              <div class="content-item">SPOTIFY</div>
+            </scrolling-track>
+          </scrolling-content>
+        </div>
+      </section>
+
+      <section>
+        <div class="demo-section">
+          <h2>Fast Animation</h2>
+          <p>High-speed scrolling for urgent announcements or quick updates.</p>
+
+          <scrolling-content class="fast-demo" data-mobile-speed="80" data-desktop-speed="120">
+            <scrolling-track>
+              <div class="content-item">⚡ Breaking News</div>
+              <div class="content-item">🔥 Hot Deals</div>
+              <div class="content-item">⏰ Limited Time</div>
+              <div class="content-item">💨 Act Fast</div>
+              <div class="content-item">🎯 Don't Miss Out</div>
+            </scrolling-track>
+          </scrolling-content>
+        </div>
+      </section>
+
+      <section>
+        <div class="demo-section">
+          <h2>Slow & Smooth</h2>
+          <p>Gentle, readable scrolling for important information.</p>
+
+          <scrolling-content class="slow-demo" data-mobile-speed="20" data-desktop-speed="30">
+            <scrolling-track>
+              <div class="content-item">🌟 Premium Quality</div>
+              <div class="content-item">💎 Crafted with Care</div>
+              <div class="content-item">🎖️ Award Winning</div>
+            </scrolling-track>
+          </scrolling-content>
+        </div>
+      </section>
+
+      <section>
+        <div class="demo-section">
+          <h2>Features</h2>
+          <div class="features">
+            <div class="feature">
+              <h3>🎮 Interactive</h3>
+              <p>Hover to pause, drag to scroll manually. Touch-friendly on mobile devices.</p>
+            </div>
+            <div class="feature">
+              <h3>📱 Responsive</h3>
+              <p>Different speeds for mobile and desktop with customizable breakpoints.</p>
+            </div>
+            <div class="feature">
+              <h3>🔄 Infinite Loop</h3>
+              <p>Seamless infinite scrolling with automatic content duplication.</p>
+            </div>
+            <div class="feature">
+              <h3>⚡ Lightweight</h3>
+              <p>Tiny file size with zero dependencies. Smooth animations that adapt to device refresh rates.</p>
+            </div>
+            <div class="feature">
+              <h3>🎨 Customizable</h3>
+              <p>Control speed, gap, breakpoints, and styling through data attributes and CSS.</p>
+            </div>
+            <div class="feature">
+              <h3>🎯 Easy Integration</h3>
+              <p>Drop-in web component that works with any framework or vanilla HTML.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="./scrolling-content.esm.js"></script>
+  </body>
+</html>

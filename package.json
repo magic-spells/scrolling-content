@@ -1,0 +1,68 @@
+{
+  "name": "@magic-spells/scrolling-content",
+  "version": "0.1.0",
+  "description": "Scrolling content web component with smooth infinite animation.",
+  "author": "Cory Schulz @ Magic Spells",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/scrolling-content.cjs.js",
+  "module": "dist/scrolling-content.esm.js",
+  "unpkg": "dist/scrolling-content.min.js",
+  "exports": {
+    ".": {
+      "import": "./dist/scrolling-content.esm.js",
+      "require": "./dist/scrolling-content.cjs.js",
+      "default": "./dist/scrolling-content.esm.js"
+    }
+  },
+  "sideEffects": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/magic-spells/scrolling-content"
+  },
+  "homepage": "https://github.com/magic-spells/scrolling-content#readme",
+  "bugs": {
+    "url": "https://github.com/magic-spells/scrolling-content/issues"
+  },
+  "keywords": [
+    "scrolling",
+    "content",
+    "animation",
+    "infinite-scroll",
+    "web-components",
+    "custom-elements",
+    "marquee"
+  ],
+  "files": [
+    "dist/",
+    "src/"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "lint": "eslint src/ rollup.config.mjs",
+    "format": "prettier --write .",
+    "prepublishOnly": "npm run build",
+    "serve": "rollup -c --watch",
+    "dev": "rollup -c --watch"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "browserslist": [
+    "last 2 versions",
+    "not dead",
+    "not ie <= 11"
+  ],
+  "devDependencies": {
+    "@eslint/js": "^8.57.0",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "eslint": "^8.0.0",
+    "globals": "^13.24.0",
+    "prettier": "^3.3.3",
+    "rollup": "^3.0.0",
+    "rollup-plugin-copy": "^3.5.0",
+    "rollup-plugin-serve": "^1.1.1"
+  }
+}
