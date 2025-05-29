@@ -55,8 +55,8 @@ Or include directly in your HTML:
 
 ## How It Works
 
+- Content is wrapped in `<scrolling-item>` and is duplicated until it fills at least 200% of the container width.
 - The component automatically starts scrolling when loaded.
-- Content inside `<scrolling-item>` is duplicated until it fills at least 200% of the container width.
 - The track smoothly scrolls left, creating an infinite loop by resetting position when one full cycle completes.
 - Hovering over the content pauses the animation.
 - You can drag the content to manually scroll (touch-friendly on mobile).
@@ -66,17 +66,17 @@ Or include directly in your HTML:
 
 The scrolling content can be configured using the following attributes:
 
-| Attribute             | Description                                                                      | Default |
-| --------------------- | -------------------------------------------------------------------------------- | ------- |
-| `data-mobile-speed`   | Animation speed in pixels per second for mobile devices (≤ breakpoint width)    | 40      |
-| `data-desktop-speed`  | Animation speed in pixels per second for desktop devices (> breakpoint width)   | 60      |
-| `data-breakpoint`     | Screen width in pixels that determines mobile vs desktop speed                  | 767     |
+| Attribute            | Description                                                                   | Default |
+| -------------------- | ----------------------------------------------------------------------------- | ------- |
+| `data-mobile-speed`  | Animation speed in pixels per second for mobile devices (≤ breakpoint width)  | 40      |
+| `data-desktop-speed` | Animation speed in pixels per second for desktop devices (> breakpoint width) | 60      |
+| `data-breakpoint`    | Screen width in pixels that determines mobile vs desktop speed                | 767     |
 
 ### Track Configuration
 
-| Attribute  | Description                                                   | Default                |
-| ---------- | ------------------------------------------------------------- | ---------------------- |
-| `data-gap` | Gap between duplicated items in pixels (overrides CSS var)   | Uses CSS variable      |
+| Attribute  | Description                                                | Default           |
+| ---------- | ---------------------------------------------------------- | ----------------- |
+| `data-gap` | Gap between duplicated items in pixels (overrides CSS var) | Uses CSS variable |
 
 Example:
 
@@ -84,18 +84,14 @@ Example:
 <!-- Fast scrolling with custom breakpoint -->
 <scrolling-content data-mobile-speed="60" data-desktop-speed="100" data-breakpoint="1024">
   <scrolling-track data-gap="30">
-    <scrolling-item>
-      <div>Fast scrolling content</div>
-    </scrolling-item>
+    <div>Fast scrolling content</div>
   </scrolling-track>
 </scrolling-content>
 
 <!-- Slow, gentle scrolling -->
 <scrolling-content data-mobile-speed="20" data-desktop-speed="30">
   <scrolling-track>
-    <scrolling-item>
-      <div>Slow scrolling content</div>
-    </scrolling-item>
+    <div>Slow scrolling content</div>
   </scrolling-track>
 </scrolling-content>
 ```
@@ -113,7 +109,7 @@ scrolling-content {
 }
 
 /* Style your content items */
-scrolling-item div {
+scrolling-track div {
   background: #667eea;
   color: white;
   padding: 1rem 2rem;
@@ -126,7 +122,7 @@ scrolling-item div {
   --scrolling-content-gap: 3rem;
 }
 
-.logo-carousel scrolling-item div {
+.logo-carousel scrolling-track div {
   background: white;
   border: 2px solid #e0e0e0;
   color: #333;
@@ -136,9 +132,9 @@ scrolling-item div {
 
 ### CSS Variables
 
-| Variable                    | Description                                | Default |
-| --------------------------- | ------------------------------------------ | ------- |
-| `--scrolling-content-gap`   | Gap between track items and within items  | 1rem    |
+| Variable                  | Description                              | Default |
+| ------------------------- | ---------------------------------------- | ------- |
+| `--scrolling-content-gap` | Gap between track items and within items | 1rem    |
 
 Example:
 
