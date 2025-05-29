@@ -193,7 +193,7 @@ scrollingContent.setAttribute('data-desktop-speed', '80');
 
 The component uses:
 
-- `requestAnimationFrame` for smooth 60fps animations
+- `requestAnimationFrame` for smooth animations that adapt to device refresh rates
 - CSS `transform` for hardware-accelerated scrolling
 - Efficient content duplication that only runs when needed
 - Automatic cleanup of event listeners

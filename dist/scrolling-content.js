@@ -11,6 +11,7 @@
       this.style.alignItems = 'center';
       this.style.gap = 'var(--scrolling-content-gap, 1rem)';
       this.style.cursor = 'pointer';
+      this.style.touchAction = 'pan-y';
       if (this.dataset.gap) this.style.gap = `${parseFloat(this.dataset.gap)}px`;
     }
   }
