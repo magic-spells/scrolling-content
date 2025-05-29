@@ -341,4 +341,3 @@ class ScrollingContent extends HTMLElement {
   }
 }
 customElements.define('scrolling-content', ScrollingContent);
-//# sourceMappingURL=scrolling-content.esm.js.map
