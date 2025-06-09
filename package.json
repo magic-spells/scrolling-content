@@ -1,6 +1,6 @@
 {
   "name": "@magic-spells/scrolling-content",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Scrolling content web component with smooth infinite animation.",
   "author": "Cory Schulz @ Magic Spells",
   "license": "MIT",
