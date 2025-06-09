@@ -377,4 +377,3 @@
   customElements.define('scrolling-content', ScrollingContent);
 
 }));
-//# sourceMappingURL=scrolling-content.js.map
