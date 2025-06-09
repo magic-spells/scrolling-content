@@ -48,20 +48,32 @@ class ScrollingContent extends HTMLElement {
     _.containerWidth = 0;
     _.loopDistance = 0; // distance to move before wrapping back to start
     _.rafId = null;
+    _.recalculateLayout = _.throttle(() => _.doRecalculateLayout(), 5);
     _.resizeHandler = () => _.handleResize();
+    _.focusHandler = () => _.handleFocus();
     _.touchDirection = 0; // 0: unknown, 1: horizontal, -1: vertical
     _.directionThreshold = 3; // pixels of movement before determining direction
+  }
+
+  throttle(func, delay) {
+    let timeoutId;
+    return (...args) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => func.apply(this, args), delay);
+    };
   }
 
   connectedCallback() {
     const _ = this;
     _.initElements();
     _.readAttributes();
-    requestAnimationFrame(() => {
+    // using requestAnimationFrame here causes a
+    // width calculation error - so don't use it here!
+    setTimeout(() => {
       _.checkTrackWidth();
       _.attachEvents();
       _.start();
-    });
+    }, 5);
   }
 
   attributeChangedCallback(name, oldV, newV) {
@@ -153,19 +165,20 @@ class ScrollingContent extends HTMLElement {
       _.isHoverPaused = false;
       if (!_.isDragging) _.start();
     });
-    
+
     // Touch events for better mobile support
     _.track.addEventListener('touchstart', (e) => _.onTouchStart(e), { passive: false });
     _.track.addEventListener('touchmove', (e) => _.onTouchMove(e), { passive: false });
     _.track.addEventListener('touchend', (e) => _.onTouchEnd(e));
     _.track.addEventListener('touchcancel', (e) => _.onTouchEnd(e));
-    
+
     // Pointer events for desktop/mouse
     _.track.addEventListener('pointerdown', (e) => _.onPointerDown(e));
     window.addEventListener('pointermove', (e) => _.onPointerMove(e));
     window.addEventListener('pointerup', (e) => _.onPointerUp(e));
     window.addEventListener('pointercancel', (e) => _.onPointerUp(e));
     window.addEventListener('resize', _.resizeHandler);
+    window.addEventListener('focus', _.focusHandler);
   }
 
   start() {
@@ -219,7 +232,7 @@ class ScrollingContent extends HTMLElement {
   onTouchStart(e) {
     const _ = this;
     if (e.touches.length !== 1) return; // only handle single touch
-    
+
     _.isDragging = true;
     _.dragStartX = e.touches[0].screenX;
     _.dragStartY = e.touches[0].screenY;
@@ -236,7 +249,7 @@ class ScrollingContent extends HTMLElement {
     if (_.touchDirection === 1) {
       e.preventDefault();
       const diffX = e.touches[0].screenX - _.dragStartX;
-      
+
       _.offsetX = _.startOffset + diffX;
       while (_.offsetX <= -_.loopDistance) _.offsetX += _.loopDistance;
       while (_.offsetX > 0) _.offsetX -= _.loopDistance;
@@ -249,7 +262,10 @@ class ScrollingContent extends HTMLElement {
     const deltaY = Math.abs(_.dragStartY - e.touches[0].screenY);
 
     // determine direction with bias toward horizontal (like your carousel)
-    if (deltaX * 1.15 > deltaY && (deltaX > _.directionThreshold || deltaY > _.directionThreshold)) {
+    if (
+      deltaX * 1.15 > deltaY &&
+      (deltaX > _.directionThreshold || deltaY > _.directionThreshold)
+    ) {
       // horizontal movement detected
       _.touchDirection = 1;
       e.preventDefault();
@@ -266,7 +282,7 @@ class ScrollingContent extends HTMLElement {
     e.preventDefault();
   }
 
-  onTouchEnd(e) {
+  onTouchEnd() {
     const _ = this;
     if (!_.isDragging) return;
     _.isDragging = false;
@@ -278,7 +294,7 @@ class ScrollingContent extends HTMLElement {
     const _ = this;
     // Skip if this is a touch event (handled by touch handlers)
     if (e.pointerType === 'touch') return;
-    
+
     _.isDragging = true;
     _.dragStartX = e.clientX;
     _.dragStartY = e.clientY; // store initial Y position
@@ -296,7 +312,6 @@ class ScrollingContent extends HTMLElement {
 
     // calculate movement distances
     const diffX = e.clientX - _.dragStartX;
-    e.clientY - _.dragStartY;
 
     _.offsetX = _.startOffset + diffX;
 
@@ -312,7 +327,7 @@ class ScrollingContent extends HTMLElement {
     if (!_.isDragging) return;
     // Skip if this is a touch event (handled by touch handlers)
     if (e.pointerType === 'touch') return;
-    
+
     _.isDragging = false;
     _.touchDirection = 0; // reset direction
     try {
@@ -323,21 +338,36 @@ class ScrollingContent extends HTMLElement {
     if (!_.isHoverPaused) _.start();
   }
 
+  doRecalculateLayout() {
+    const _ = this;
+    setTimeout(() => {
+      _.containerWidth = _.getBoundingClientRect().width;
+      _.checkTrackWidth();
+
+      // normalize offset position with new dimensions
+      _.offsetX = _.offsetX % _.loopDistance;
+      while (_.offsetX <= -_.loopDistance) _.offsetX += _.loopDistance;
+      while (_.offsetX > 0) _.offsetX -= _.loopDistance;
+
+      _.track.style.transform = `translateX(${_.offsetX}px)`;
+
+      // restart animation if not paused by user interaction
+      if (!_.isHoverPaused && !_.isDragging) {
+        _.start();
+      }
+    }, 1);
+  }
+
   handleResize() {
     const _ = this;
     const newW = _.getBoundingClientRect().width;
     if (newW === _.containerWidth) return;
-    _.containerWidth = newW;
+    _.recalculateLayout();
+  }
 
-    // recalculate and rebuild track
-    _.checkTrackWidth();
-
-    // normalize offset position
-    _.offsetX = _.offsetX % _.loopDistance;
-    while (_.offsetX <= -_.loopDistance) _.offsetX += _.loopDistance;
-    while (_.offsetX > 0) _.offsetX -= _.loopDistance;
-
-    _.track.style.transform = `translateX(${_.offsetX}px)`;
+  handleFocus() {
+    this.recalculateLayout();
   }
 }
 customElements.define('scrolling-content', ScrollingContent);
+//# sourceMappingURL=scrolling-content.esm.js.map

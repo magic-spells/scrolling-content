@@ -61,7 +61,6 @@
         --scrolling-content-gap: 1rem;
       }
 
-
       /* Content item styling */
       .content-item {
         padding: 0.75rem 1.5rem;
@@ -126,7 +125,7 @@
 
       .features {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
         gap: 1rem;
         margin: 2rem 0;
       }
@@ -193,7 +192,8 @@
             </scrolling-track>
           </scrolling-content>
 
-          <pre class="code-block"><code>&lt;scrolling-content data-mobile-speed="40" data-desktop-speed="60"&gt;
+          <pre
+            class="code-block"><code>&lt;scrolling-content data-mobile-speed="40" data-desktop-speed="60"&gt;
   &lt;scrolling-track&gt;
     &lt;div&gt;🚀 Web Components&lt;/div&gt;
     &lt;div&gt;⚡ Lightning Fast&lt;/div&gt;
@@ -280,7 +280,10 @@
             </div>
             <div class="feature">
               <h3>⚡ Lightweight</h3>
-              <p>Tiny file size with zero dependencies. Smooth animations that adapt to device refresh rates.</p>
+              <p>
+                Tiny file size with zero dependencies. Smooth animations that adapt to device
+                refresh rates.
+              </p>
             </div>
             <div class="feature">
               <h3>🎨 Customizable</h3>
