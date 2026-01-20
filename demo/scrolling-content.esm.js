@@ -1,13 +1,14 @@
 // <scrolling-track>
 class ScrollingTrack extends HTMLElement {
   connectedCallback() {
-    this.style.display = 'flex';
-    this.style.flexWrap = 'nowrap';
-    this.style.alignItems = 'center';
-    this.style.gap = 'var(--scrolling-content-gap, 1rem)';
-    this.style.cursor = 'pointer';
-    this.style.touchAction = 'pan-y';
-    if (this.dataset.gap) this.style.gap = `${parseFloat(this.dataset.gap)}px`;
+    const _ = this;
+    _.style.display = 'flex';
+    _.style.flexWrap = 'nowrap';
+    _.style.alignItems = 'center';
+    _.style.gap = 'var(--scrolling-content-gap, 1rem)';
+    _.style.cursor = 'pointer';
+    _.style.touchAction = 'pan-y';
+    if (_.getAttribute('gap')) _.style.gap = `${parseFloat(_.getAttribute('gap'))}px`;
   }
 }
 customElements.define('scrolling-track', ScrollingTrack);
@@ -15,10 +16,11 @@ customElements.define('scrolling-track', ScrollingTrack);
 // <scrolling-item>
 class ScrollingItem extends HTMLElement {
   connectedCallback() {
-    this.style.display = 'flex';
-    this.style.alignItems = 'center';
-    this.style.gap = 'var(--scrolling-content-gap, 1rem)';
-    if (this.dataset.pad) this.style.padding = `${parseFloat(this.dataset.pad)}px`;
+    const _ = this;
+    _.style.display = 'flex';
+    _.style.alignItems = 'center';
+    _.style.gap = 'var(--scrolling-content-gap, 1rem)';
+    if (_.getAttribute('pad')) _.style.padding = `${parseFloat(_.getAttribute('pad'))}px`;
   }
 }
 customElements.define('scrolling-item', ScrollingItem);
@@ -26,7 +28,7 @@ customElements.define('scrolling-item', ScrollingItem);
 // <scrolling-content>
 class ScrollingContent extends HTMLElement {
   static get observedAttributes() {
-    return ['data-mobile-speed', 'data-desktop-speed', 'data-breakpoint'];
+    return ['mobile-speed', 'desktop-speed', 'breakpoint'];
   }
 
   constructor() {
@@ -77,11 +79,12 @@ class ScrollingContent extends HTMLElement {
   }
 
   attributeChangedCallback(name, oldV, newV) {
+    const _ = this;
     if (oldV === newV) return;
-    this.readAttributes();
-    if (!this.isHoverPaused && !this.isDragging) {
-      this.stop();
-      this.start();
+    _.readAttributes();
+    if (!_.isHoverPaused && !_.isDragging) {
+      _.stop();
+      _.start();
     }
   }
 
@@ -118,9 +121,9 @@ class ScrollingContent extends HTMLElement {
     const _ = this;
     const getNum = (attr, fallback) =>
       isNaN(parseFloat(_.getAttribute(attr))) ? fallback : parseFloat(_.getAttribute(attr));
-    _.mobileSpeed = getNum('data-mobile-speed', _.mobileSpeed);
-    _.desktopSpeed = getNum('data-desktop-speed', _.desktopSpeed);
-    _.breakpoint = getNum('data-breakpoint', _.breakpoint);
+    _.mobileSpeed = getNum('mobile-speed', _.mobileSpeed);
+    _.desktopSpeed = getNum('desktop-speed', _.desktopSpeed);
+    _.breakpoint = getNum('breakpoint', _.breakpoint);
   }
 
   /**

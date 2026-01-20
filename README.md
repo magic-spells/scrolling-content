@@ -35,7 +35,7 @@ Or include directly in your HTML:
 ## Usage
 
 ```html
-<scrolling-content data-mobile-speed="40" data-desktop-speed="60">
+<scrolling-content mobile-speed="40" desktop-speed="60">
   <scrolling-track>
     <div>🚀 Web Components</div>
     <div>⚡ Lightning Fast</div>
@@ -66,30 +66,30 @@ Or include directly in your HTML:
 
 The scrolling content can be configured using the following attributes:
 
-| Attribute            | Description                                                                   | Default |
-| -------------------- | ----------------------------------------------------------------------------- | ------- |
-| `data-mobile-speed`  | Animation speed in pixels per second for mobile devices (≤ breakpoint width)  | 40      |
-| `data-desktop-speed` | Animation speed in pixels per second for desktop devices (> breakpoint width) | 60      |
-| `data-breakpoint`    | Screen width in pixels that determines mobile vs desktop speed                | 767     |
+| Attribute       | Description                                                                   | Default |
+| --------------- | ----------------------------------------------------------------------------- | ------- |
+| `mobile-speed`  | Animation speed in pixels per second for mobile devices (≤ breakpoint width)  | 40      |
+| `desktop-speed` | Animation speed in pixels per second for desktop devices (> breakpoint width) | 60      |
+| `breakpoint`    | Screen width in pixels that determines mobile vs desktop speed                | 767     |
 
 ### Track Configuration
 
-| Attribute  | Description                                                | Default           |
-| ---------- | ---------------------------------------------------------- | ----------------- |
-| `data-gap` | Gap between duplicated items in pixels (overrides CSS var) | Uses CSS variable |
+| Attribute | Description                                                | Default           |
+| --------- | ---------------------------------------------------------- | ----------------- |
+| `gap`     | Gap between duplicated items in pixels (overrides CSS var) | Uses CSS variable |
 
 Example:
 
 ```html
 <!-- Fast scrolling with custom breakpoint -->
-<scrolling-content data-mobile-speed="60" data-desktop-speed="100" data-breakpoint="1024">
-  <scrolling-track data-gap="30">
+<scrolling-content mobile-speed="60" desktop-speed="100" breakpoint="1024">
+  <scrolling-track gap="30">
     <div>Fast scrolling content</div>
   </scrolling-track>
 </scrolling-content>
 
 <!-- Slow, gentle scrolling -->
-<scrolling-content data-mobile-speed="20" data-desktop-speed="30">
+<scrolling-content mobile-speed="20" desktop-speed="30">
   <scrolling-track>
     <div>Slow scrolling content</div>
   </scrolling-track>
@@ -182,7 +182,7 @@ scrollingContent.stop();
 scrollingContent.start();
 
 // Change speed dynamically
-scrollingContent.setAttribute('data-desktop-speed', '80');
+scrollingContent.setAttribute('desktop-speed', '80');
 ```
 
 #### Performance

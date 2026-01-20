@@ -7,7 +7,12 @@ export default [
 		// Source files
 		files: ['src/**/*.js'],
 		languageOptions: {
-			globals: globals.browser,
+			globals: {
+				...globals.browser,
+				...globals.es2024,
+			},
+			ecmaVersion: 2024,
+			sourceType: 'module',
 		},
 		...pluginJs.configs.recommended,
 	},
@@ -17,8 +22,11 @@ export default [
 		languageOptions: {
 			globals: {
 				...globals.node, // This adds node globals including 'process'
+				...globals.es2024,
 				process: true,
 			},
+			ecmaVersion: 2024,
+			sourceType: 'module',
 		},
 	},
 ];
