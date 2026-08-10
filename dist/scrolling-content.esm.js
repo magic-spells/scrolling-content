@@ -1,375 +1,339 @@
-// <scrolling-track>
-class ScrollingTrack extends HTMLElement {
-  connectedCallback() {
-    const _ = this;
-    _.style.display = 'flex';
-    _.style.flexWrap = 'nowrap';
-    _.style.alignItems = 'center';
-    _.style.gap = 'var(--scrolling-content-gap, 1rem)';
-    _.style.cursor = 'pointer';
-    _.style.touchAction = 'pan-y';
-    if (_.getAttribute('gap')) _.style.gap = `${parseFloat(_.getAttribute('gap'))}px`;
-  }
+//#region src/scrolling-content.css?inline
+var scrolling_content_default = "scrolling-content:not(:defined) {\n  visibility: hidden;\n}\n\nscrolling-content {\n  display: block;\n  overflow: hidden;\n}\n\nscrolling-track {\n  align-items: center;\n  gap: var(--scrolling-content-gap, 1rem);\n  will-change: transform;\n  touch-action: pan-y;\n  cursor: grab;\n  flex-wrap: nowrap;\n  width: max-content;\n  display: flex;\n}\n\nscrolling-content[drag=\"false\"] scrolling-track {\n  cursor: auto;\n  touch-action: auto;\n}\n\nscrolling-content[dragging] scrolling-track {\n  cursor: grabbing;\n  -webkit-user-select: none;\n  user-select: none;\n}\n\nscrolling-item {\n  align-items: center;\n  gap: var(--scrolling-content-gap, 1rem);\n  padding: var(--scrolling-content-item-padding, 0);\n  flex: none;\n  display: flex;\n}\n";
+//#endregion
+//#region src/scrolling-content.js
+function injectStyles() {
+	if (typeof document === "undefined") return;
+	if (document.querySelector("style[data-scrolling-content]")) return;
+	const style = document.createElement("style");
+	style.setAttribute("data-scrolling-content", "");
+	style.textContent = `@layer scrolling-content {\n${scrolling_content_default}\n}`;
+	document.head.prepend(style);
 }
-customElements.define('scrolling-track', ScrollingTrack);
-
-// <scrolling-item>
-class ScrollingItem extends HTMLElement {
-  connectedCallback() {
-    const _ = this;
-    _.style.display = 'flex';
-    _.style.alignItems = 'center';
-    _.style.gap = 'var(--scrolling-content-gap, 1rem)';
-    if (_.getAttribute('pad')) _.style.padding = `${parseFloat(_.getAttribute('pad'))}px`;
-  }
-}
-customElements.define('scrolling-item', ScrollingItem);
-
-// <scrolling-content>
-class ScrollingContent extends HTMLElement {
-  static get observedAttributes() {
-    return ['mobile-speed', 'desktop-speed', 'breakpoint'];
-  }
-
-  constructor() {
-    super();
-    const _ = this;
-    _.track = null;
-    _.items = [];
-    _.mobileSpeed = 40;
-    _.desktopSpeed = 60;
-    _.breakpoint = 767;
-    _.isRunning = false;
-    _.isHoverPaused = false;
-    _.isDragging = false;
-    _.prevTime = 0;
-    _.offsetX = 0;
-    _.dragStartX = 0;
-    _.dragStartY = 0; // track initial Y position for direction detection
-    _.startOffset = 0;
-    _.containerWidth = 0;
-    _.loopDistance = 0; // distance to move before wrapping back to start
-    _.rafId = null;
-    _.recalculateLayout = _.throttle(() => _.doRecalculateLayout(), 5);
-    _.resizeHandler = () => _.handleResize();
-    _.focusHandler = () => _.handleFocus();
-    _.touchDirection = 0; // 0: unknown, 1: horizontal, -1: vertical
-    _.directionThreshold = 3; // pixels of movement before determining direction
-  }
-
-  throttle(func, delay) {
-    let timeoutId;
-    return (...args) => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => func.apply(this, args), delay);
-    };
-  }
-
-  connectedCallback() {
-    const _ = this;
-    _.initElements();
-    _.readAttributes();
-    // using requestAnimationFrame here causes a
-    // width calculation error - so don't use it here!
-    setTimeout(() => {
-      _.checkTrackWidth();
-      _.attachEvents();
-      _.start();
-    }, 5);
-  }
-
-  attributeChangedCallback(name, oldV, newV) {
-    const _ = this;
-    if (oldV === newV) return;
-    _.readAttributes();
-    if (!_.isHoverPaused && !_.isDragging) {
-      _.stop();
-      _.start();
-    }
-  }
-
-  initElements() {
-    const _ = this;
-    _.style.overflow = 'hidden';
-    _.track = _.querySelector('scrolling-track');
-    if (!_.track) {
-      _.track = document.createElement('scrolling-track');
-      while (_.firstChild) _.track.appendChild(_.firstChild);
-      _.appendChild(_.track);
-    }
-
-    // Check if content is already wrapped in scrolling-item
-    const existingItem = _.track.querySelector('scrolling-item');
-    if (!existingItem) {
-      // Wrap all track content in a single scrolling-item
-      const item = document.createElement('scrolling-item');
-      while (_.track.firstChild) {
-        item.appendChild(_.track.firstChild);
-      }
-      _.track.appendChild(item);
-    }
-
-    _.items = Array.from(_.track.children);
-    Object.assign(_.track.style, {
-      display: 'flex',
-      willChange: 'transform',
-    });
-    _.containerWidth = _.getBoundingClientRect().width;
-  }
-
-  readAttributes() {
-    const _ = this;
-    const getNum = (attr, fallback) =>
-      isNaN(parseFloat(_.getAttribute(attr))) ? fallback : parseFloat(_.getAttribute(attr));
-    _.mobileSpeed = getNum('mobile-speed', _.mobileSpeed);
-    _.desktopSpeed = getNum('desktop-speed', _.desktopSpeed);
-    _.breakpoint = getNum('breakpoint', _.breakpoint);
-  }
-
-  /**
-   * duplicates items until track is at least 200% of container width
-   */
-  checkTrackWidth() {
-    const _ = this;
-    if (!_.items.length) return;
-
-    // get the width of the first item (since all items are the same)
-    const itemWidth = _.items[0].getBoundingClientRect().width;
-
-    // get gap from CSS variable or track style
-    const computedStyle = getComputedStyle(_.track);
-    const gap = parseFloat(computedStyle.gap) || 0;
-
-    // store the distance we need to move before wrapping back to start
-    // this is the width of one item plus one gap
-    _.loopDistance = itemWidth + gap;
-
-    // calculate how many items we need to fill 200% of container
-    const itemsNeeded = Math.ceil((_.containerWidth * 2) / itemWidth) + 1;
-
-    // only duplicate if we need more items
-    const currentCount = _.items.length;
-    for (let i = currentCount; i < itemsNeeded; i++) {
-      const clone = _.items[0].cloneNode(true);
-      _.track.appendChild(clone);
-    }
-
-    // update items array with all children
-    _.items = Array.from(_.track.children);
-  }
-
-  attachEvents() {
-    const _ = this;
-    _.addEventListener('mouseenter', () => {
-      _.isHoverPaused = true;
-      _.stop();
-    });
-    _.addEventListener('mouseleave', () => {
-      _.isHoverPaused = false;
-      if (!_.isDragging) _.start();
-    });
-
-    // Touch events for better mobile support
-    _.track.addEventListener('touchstart', (e) => _.onTouchStart(e), { passive: false });
-    _.track.addEventListener('touchmove', (e) => _.onTouchMove(e), { passive: false });
-    _.track.addEventListener('touchend', (e) => _.onTouchEnd(e));
-    _.track.addEventListener('touchcancel', (e) => _.onTouchEnd(e));
-
-    // Pointer events for desktop/mouse
-    _.track.addEventListener('pointerdown', (e) => _.onPointerDown(e));
-    window.addEventListener('pointermove', (e) => _.onPointerMove(e));
-    window.addEventListener('pointerup', (e) => _.onPointerUp(e));
-    window.addEventListener('pointercancel', (e) => _.onPointerUp(e));
-    window.addEventListener('resize', _.resizeHandler);
-    window.addEventListener('focus', _.focusHandler);
-  }
-
-  start() {
-    const _ = this;
-    if (_.isRunning) return;
-    _.isRunning = true;
-    _.prevTime = performance.now();
-    _.rafId = requestAnimationFrame((ts) => _.tick(ts));
-  }
-
-  stop() {
-    const _ = this;
-    if (!_.isRunning) return;
-    cancelAnimationFrame(_.rafId);
-    _.isRunning = false;
-    _.rafId = null;
-  }
-
-  /**
-   * main animation loop
-   * @param {number} ts - timestamp from requestAnimationFrame
-   */
-  tick(ts) {
-    const _ = this;
-    if (!_.isRunning) return;
-
-    // calculate time delta
-    const delta = (ts - _.prevTime) / 1000;
-    _.prevTime = ts;
-
-    // move left by speed * delta
-    _.offsetX -= _.getCurrentSpeed() * delta;
-
-    // wrap around when we've moved past one complete loop distance
-    // this creates the infinite loop illusion
-    if (_.offsetX <= -_.loopDistance) {
-      _.offsetX += _.loopDistance;
-    }
-
-    // apply the transform
-    _.track.style.transform = `translateX(${_.offsetX}px)`;
-
-    // continue animation
-    _.rafId = requestAnimationFrame((t) => _.tick(t));
-  }
-
-  getCurrentSpeed() {
-    return window.innerWidth <= this.breakpoint ? this.mobileSpeed : this.desktopSpeed;
-  }
-
-  onTouchStart(e) {
-    const _ = this;
-    if (e.touches.length !== 1) return; // only handle single touch
-
-    _.isDragging = true;
-    _.dragStartX = e.touches[0].screenX;
-    _.dragStartY = e.touches[0].screenY;
-    _.startOffset = _.offsetX;
-    _.touchDirection = 0; // reset direction
-    _.stop();
-  }
-
-  onTouchMove(e) {
-    const _ = this;
-    if (!_.isDragging || e.touches.length !== 1) return;
-
-    // if already determined to be horizontal, prevent default and scroll
-    if (_.touchDirection === 1) {
-      e.preventDefault();
-      const diffX = e.touches[0].screenX - _.dragStartX;
-
-      _.offsetX = _.startOffset + diffX;
-      while (_.offsetX <= -_.loopDistance) _.offsetX += _.loopDistance;
-      while (_.offsetX > 0) _.offsetX -= _.loopDistance;
-      _.track.style.transform = `translateX(${_.offsetX}px)`;
-      return;
-    }
-
-    // calculate movement distances to determine direction
-    const deltaX = Math.abs(_.dragStartX - e.touches[0].screenX);
-    const deltaY = Math.abs(_.dragStartY - e.touches[0].screenY);
-
-    // determine direction with bias toward horizontal (like your carousel)
-    if (
-      deltaX * 1.15 > deltaY &&
-      (deltaX > _.directionThreshold || deltaY > _.directionThreshold)
-    ) {
-      // horizontal movement detected
-      _.touchDirection = 1;
-      e.preventDefault();
-      return;
-    } else if (deltaY > _.directionThreshold && deltaX <= deltaY) {
-      // vertical movement detected - cancel drag and allow page scroll
-      _.touchDirection = -1;
-      _.isDragging = false;
-      if (!_.isHoverPaused) _.start();
-      return;
-    }
-
-    // direction not yet determined - prevent default to avoid premature page scroll
-    e.preventDefault();
-  }
-
-  onTouchEnd() {
-    const _ = this;
-    if (!_.isDragging) return;
-    _.isDragging = false;
-    _.touchDirection = 0;
-    if (!_.isHoverPaused) _.start();
-  }
-
-  onPointerDown(e) {
-    const _ = this;
-    // Skip if this is a touch event (handled by touch handlers)
-    if (e.pointerType === 'touch') return;
-
-    _.isDragging = true;
-    _.dragStartX = e.clientX;
-    _.dragStartY = e.clientY; // store initial Y position
-    _.startOffset = _.offsetX;
-    _.touchDirection = 0; // reset direction detection
-    _.stop();
-    _.track.setPointerCapture(e.pointerId);
-  }
-
-  onPointerMove(e) {
-    const _ = this;
-    if (!_.isDragging) return;
-    // Skip if this is a touch event (handled by touch handlers)
-    if (e.pointerType === 'touch') return;
-
-    // calculate movement distances
-    const diffX = e.clientX - _.dragStartX;
-
-    _.offsetX = _.startOffset + diffX;
-
-    // normalize offset to stay within bounds
-    while (_.offsetX <= -_.loopDistance) _.offsetX += _.loopDistance;
-    while (_.offsetX > 0) _.offsetX -= _.loopDistance;
-
-    _.track.style.transform = `translateX(${_.offsetX}px)`;
-  }
-
-  onPointerUp(e) {
-    const _ = this;
-    if (!_.isDragging) return;
-    // Skip if this is a touch event (handled by touch handlers)
-    if (e.pointerType === 'touch') return;
-
-    _.isDragging = false;
-    _.touchDirection = 0; // reset direction
-    try {
-      _.track.releasePointerCapture(e.pointerId);
-    } catch {
-      // Ignore errors if pointer capture was already released
-    }
-    if (!_.isHoverPaused) _.start();
-  }
-
-  doRecalculateLayout() {
-    const _ = this;
-    setTimeout(() => {
-      _.containerWidth = _.getBoundingClientRect().width;
-      _.checkTrackWidth();
-
-      // normalize offset position with new dimensions
-      _.offsetX = _.offsetX % _.loopDistance;
-      while (_.offsetX <= -_.loopDistance) _.offsetX += _.loopDistance;
-      while (_.offsetX > 0) _.offsetX -= _.loopDistance;
-
-      _.track.style.transform = `translateX(${_.offsetX}px)`;
-
-      // restart animation if not paused by user interaction
-      if (!_.isHoverPaused && !_.isDragging) {
-        _.start();
-      }
-    }, 1);
-  }
-
-  handleResize() {
-    const _ = this;
-    const newW = _.getBoundingClientRect().width;
-    if (newW === _.containerWidth) return;
-    _.recalculateLayout();
-  }
-
-  handleFocus() {
-    this.recalculateLayout();
-  }
-}
-customElements.define('scrolling-content', ScrollingContent);
+var DEFAULTS = {
+	speed: 60,
+	direction: "left"
+};
+var MAX_DELTA_MS = 64;
+var FILL_RATIO = 2;
+var MIN_ITEM_WIDTH = 1;
+var MAX_ITEMS = 200;
+var LEGACY_ATTRIBUTES = [
+	"mobile-speed",
+	"desktop-speed",
+	"breakpoint"
+];
+var legacyWarned = false;
+/**
+* Track element — the flex row that gets translated. Layout lives entirely in
+* scrolling-content.css so authors can override it without `!important`.
+*/
+var ScrollingTrack = class extends HTMLElement {};
+/**
+* Item element — one repeatable unit of content. The component wraps loose
+* children in one of these and clones it to fill the track.
+*/
+var ScrollingItem = class extends HTMLElement {};
+/**
+* Infinite scrolling marquee.
+*
+* Attributes:
+*   speed           — pixels per second (default 60). Overridden by the
+*                     `--scrolling-content-speed` custom property, which lets a
+*                     media or container query change speed at a breakpoint.
+*   direction       — "left" (default) | "right"
+*   paused          — boolean; reflected, and the state `start()`/`stop()` set
+*   pause-on-hover  — "false" to opt out (default on)
+*   drag            — "false" to opt out (default on)
+*
+* Events (all bubble, all composed):
+*   scrolling-content:start, scrolling-content:stop,
+*   scrolling-content:drag-start, scrolling-content:drag-end
+*/
+var ScrollingContent = class extends HTMLElement {
+	#track = null;
+	#items = [];
+	#abortController = null;
+	#resizeObserver = null;
+	#motionQuery = null;
+	#rafId = null;
+	#initialized = false;
+	#running = false;
+	#hoverPaused = false;
+	#dragging = false;
+	#pointerId = null;
+	#previousTime = 0;
+	#offsetX = 0;
+	#dragStartX = 0;
+	#dragStartOffset = 0;
+	#containerWidth = 0;
+	#loopDistance = 0;
+	#speed = DEFAULTS.speed;
+	static get observedAttributes() {
+		return [
+			"speed",
+			"direction",
+			"paused",
+			"pause-on-hover",
+			"drag"
+		];
+	}
+	connectedCallback() {
+		const _ = this;
+		if (!_.#initialized) {
+			_.#initialized = true;
+			_.#warnLegacyAttributes();
+			_.#buildDOM();
+		}
+		_.#attachListeners();
+		_.#resizeObserver = new ResizeObserver(() => _.refresh());
+		_.#resizeObserver.observe(_);
+		if (_.#items[0]) _.#resizeObserver.observe(_.#items[0]);
+	}
+	disconnectedCallback() {
+		const _ = this;
+		_.#stopLoop();
+		_.#abortController?.abort();
+		_.#abortController = null;
+		_.#resizeObserver?.disconnect();
+		_.#resizeObserver = null;
+		_.#hoverPaused = false;
+		_.#endDrag();
+	}
+	attributeChangedCallback(name, previousValue, currentValue) {
+		if (previousValue === currentValue) return;
+		if (!this.#initialized) return;
+		if (name === "speed") this.#speed = this.#resolveSpeed();
+		this.#syncPlayback();
+	}
+	/** Resume scrolling (clears `paused`). */
+	start() {
+		this.removeAttribute("paused");
+	}
+	/** Pause scrolling (sets `paused`). */
+	stop() {
+		this.setAttribute("paused", "");
+	}
+	/**
+	* Re-measure the container and content, top up clones, and re-normalize the
+	* offset. Called automatically on resize and content change.
+	*/
+	refresh() {
+		const _ = this;
+		if (!_.isConnected || !_.#track) return;
+		_.#containerWidth = _.getBoundingClientRect().width;
+		_.#speed = _.#resolveSpeed();
+		_.#fill();
+		_.#normalizeOffset();
+		_.#paint();
+		_.#syncPlayback();
+	}
+	get speed() {
+		return this.#speed;
+	}
+	set speed(value) {
+		this.setAttribute("speed", String(value));
+	}
+	get direction() {
+		return this.getAttribute("direction") === "right" ? "right" : DEFAULTS.direction;
+	}
+	set direction(value) {
+		this.setAttribute("direction", value === "right" ? "right" : "left");
+	}
+	get paused() {
+		return this.hasAttribute("paused");
+	}
+	set paused(value) {
+		this.toggleAttribute("paused", Boolean(value));
+	}
+	#warnLegacyAttributes() {
+		if (legacyWarned) return;
+		const found = LEGACY_ATTRIBUTES.filter((name) => this.hasAttribute(name));
+		if (!found.length) return;
+		legacyWarned = true;
+		console.warn(`<scrolling-content>: ${found.join(", ")} ${found.length > 1 ? "were" : "was"} removed in v2. Use the \`speed\` attribute (px/sec) and override it per breakpoint with the \`--scrolling-content-speed\` custom property.`);
+	}
+	#buildDOM() {
+		const _ = this;
+		_.#track = _.querySelector("scrolling-track");
+		if (!_.#track) {
+			_.#track = document.createElement("scrolling-track");
+			while (_.firstChild) _.#track.appendChild(_.firstChild);
+			_.appendChild(_.#track);
+		}
+		if (!_.#track.querySelector("scrolling-item")) {
+			const item = document.createElement("scrolling-item");
+			while (_.#track.firstChild) item.appendChild(_.#track.firstChild);
+			_.#track.appendChild(item);
+		}
+		_.#items = Array.from(_.#track.children);
+	}
+	#attachListeners() {
+		const _ = this;
+		_.#abortController?.abort();
+		_.#abortController = new AbortController();
+		const { signal } = _.#abortController;
+		_.addEventListener("mouseenter", () => _.#onHover(true), { signal });
+		_.addEventListener("mouseleave", () => _.#onHover(false), { signal });
+		_.#track.addEventListener("pointerdown", (e) => _.#onPointerDown(e), { signal });
+		_.#track.addEventListener("pointermove", (e) => _.#onPointerMove(e), { signal });
+		_.#track.addEventListener("pointerup", (e) => _.#onPointerUp(e), { signal });
+		_.#track.addEventListener("pointercancel", (e) => _.#onPointerUp(e), { signal });
+		window.addEventListener("resize", () => _.refresh(), {
+			passive: true,
+			signal
+		});
+		_.#motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+		_.#motionQuery.addEventListener("change", () => _.#syncPlayback(), { signal });
+	}
+	/**
+	* Resolve speed in px/sec. The custom property wins when set, so a breakpoint
+	* can override the attribute. Deliberately not given a default in the
+	* stylesheet — a stylesheet default would always beat the attribute.
+	*/
+	#resolveSpeed() {
+		const custom = getComputedStyle(this).getPropertyValue("--scrolling-content-speed").trim();
+		const fromCSS = custom === "" ? NaN : parseFloat(custom);
+		if (Number.isFinite(fromCSS)) return fromCSS;
+		const fromAttribute = parseFloat(this.getAttribute("speed"));
+		return Number.isFinite(fromAttribute) ? fromAttribute : DEFAULTS.speed;
+	}
+	/**
+	* Measure one item and clone it until the track covers the container plus a
+	* full loop. Leaves `#loopDistance` at 0 when the content isn't measurable
+	* yet; the ResizeObserver will call back once it is.
+	*/
+	#fill() {
+		const _ = this;
+		const source = _.#items[0];
+		if (!source) return;
+		const itemWidth = source.getBoundingClientRect().width;
+		if (!(itemWidth >= MIN_ITEM_WIDTH)) {
+			_.#loopDistance = 0;
+			return;
+		}
+		_.#loopDistance = itemWidth + (parseFloat(getComputedStyle(_.#track).columnGap) || 0);
+		const needed = Math.min(Math.ceil(_.#containerWidth * FILL_RATIO / _.#loopDistance) + 1, MAX_ITEMS);
+		for (let i = _.#items.length; i < needed; i++) _.#track.appendChild(_.#cloneItem(source));
+		_.#items = Array.from(_.#track.children);
+	}
+	/**
+	* Clones are visual filler. They're hidden from assistive tech and taken out
+	* of the tab order, and their ids are stripped so the page doesn't end up
+	* with N copies of every id in the content.
+	*/
+	#cloneItem(source) {
+		const clone = source.cloneNode(true);
+		clone.setAttribute("aria-hidden", "true");
+		clone.inert = true;
+		clone.removeAttribute("id");
+		for (const element of clone.querySelectorAll("[id]")) element.removeAttribute("id");
+		return clone;
+	}
+	/** Fold the offset into (-loopDistance, 0]. */
+	#normalizeOffset() {
+		const distance = this.#loopDistance;
+		if (!(distance > 0)) {
+			this.#offsetX = 0;
+			return;
+		}
+		this.#offsetX = (this.#offsetX % distance + distance) % distance - distance;
+	}
+	#paint() {
+		if (this.#track) this.#track.style.transform = `translateX(${this.#offsetX}px)`;
+	}
+	get #prefersReducedMotion() {
+		return this.#motionQuery?.matches ?? false;
+	}
+	get #shouldRun() {
+		const _ = this;
+		return _.isConnected && _.#loopDistance > 0 && !_.paused && !_.#hoverPaused && !_.#dragging && !_.#prefersReducedMotion;
+	}
+	/** Single place that decides whether the rAF loop is alive. */
+	#syncPlayback() {
+		if (this.#shouldRun) this.#startLoop();
+		else this.#stopLoop();
+	}
+	#startLoop() {
+		const _ = this;
+		if (_.#running) return;
+		_.#running = true;
+		_.#previousTime = performance.now();
+		_.#rafId = requestAnimationFrame((timestamp) => _.#tick(timestamp));
+		_.#emit("start");
+	}
+	#stopLoop() {
+		const _ = this;
+		if (!_.#running) return;
+		cancelAnimationFrame(_.#rafId);
+		_.#rafId = null;
+		_.#running = false;
+		_.#emit("stop");
+	}
+	#tick(timestamp) {
+		const _ = this;
+		if (!_.#running) return;
+		const delta = Math.min(timestamp - _.#previousTime, MAX_DELTA_MS) / 1e3;
+		_.#previousTime = timestamp;
+		const step = _.#speed * delta;
+		_.#offsetX += _.direction === "right" ? step : -step;
+		_.#normalizeOffset();
+		_.#paint();
+		_.#rafId = requestAnimationFrame((next) => _.#tick(next));
+	}
+	#onHover(entering) {
+		if (this.getAttribute("pause-on-hover") === "false") return;
+		this.#hoverPaused = entering;
+		this.#syncPlayback();
+	}
+	get #dragEnabled() {
+		return this.getAttribute("drag") !== "false";
+	}
+	#onPointerDown(event) {
+		const _ = this;
+		if (!_.#dragEnabled || _.#dragging || !event.isPrimary) return;
+		_.#dragging = true;
+		_.#pointerId = event.pointerId;
+		_.#dragStartX = event.clientX;
+		_.#dragStartOffset = _.#offsetX;
+		_.setAttribute("dragging", "");
+		_.#syncPlayback();
+		_.#emit("drag-start");
+		try {
+			_.#track.setPointerCapture(event.pointerId);
+		} catch {}
+	}
+	#onPointerMove(event) {
+		const _ = this;
+		if (!_.#dragging || event.pointerId !== _.#pointerId) return;
+		_.#offsetX = _.#dragStartOffset + (event.clientX - _.#dragStartX);
+		_.#normalizeOffset();
+		_.#paint();
+	}
+	#onPointerUp(event) {
+		if (!this.#dragging || event.pointerId !== this.#pointerId) return;
+		this.#endDrag();
+	}
+	#endDrag() {
+		const _ = this;
+		if (!_.#dragging) return;
+		if (_.#pointerId !== null && _.#track?.hasPointerCapture(_.#pointerId)) _.#track.releasePointerCapture(_.#pointerId);
+		_.#dragging = false;
+		_.#pointerId = null;
+		_.removeAttribute("dragging");
+		_.#syncPlayback();
+		_.#emit("drag-end");
+	}
+	#emit(name) {
+		this.dispatchEvent(new CustomEvent(`scrolling-content:${name}`, {
+			bubbles: true,
+			composed: true
+		}));
+	}
+};
+injectStyles();
+if (!customElements.get("scrolling-track")) customElements.define("scrolling-track", ScrollingTrack);
+if (!customElements.get("scrolling-item")) customElements.define("scrolling-item", ScrollingItem);
+if (!customElements.get("scrolling-content")) customElements.define("scrolling-content", ScrollingContent);
+//#endregion
+export { ScrollingContent, ScrollingItem, ScrollingTrack };

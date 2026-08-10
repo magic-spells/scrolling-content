@@ -1,0 +1,45 @@
+/* Hide the host until customElements.define runs, so the un-wrapped, un-cloned
+   markup never flashes as a plain stack of divs. */
+scrolling-content:not(:defined) {
+	visibility: hidden;
+}
+
+scrolling-content {
+	display: block;
+	overflow: hidden;
+}
+
+scrolling-track {
+	display: flex;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: var(--scrolling-content-gap, 1rem);
+	/* Without max-content the flex line shrinks to the host and every item
+	   compresses instead of overflowing, which breaks the width measurement
+	   the clone count is derived from. */
+	width: max-content;
+	will-change: transform;
+	/* The browser owns vertical panning; horizontal gestures reach our pointer
+	   handlers. This is what replaces manual touch-axis detection. */
+	touch-action: pan-y;
+	cursor: grab;
+}
+
+scrolling-content[drag='false'] scrolling-track {
+	cursor: auto;
+	touch-action: auto;
+}
+
+scrolling-content[dragging] scrolling-track {
+	cursor: grabbing;
+	/* A drag is a scrub, not a click — don't let it select the text it passes over. */
+	user-select: none;
+}
+
+scrolling-item {
+	display: flex;
+	align-items: center;
+	gap: var(--scrolling-content-gap, 1rem);
+	padding: var(--scrolling-content-item-padding, 0);
+	flex: 0 0 auto;
+}
