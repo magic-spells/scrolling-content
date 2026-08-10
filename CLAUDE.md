@@ -1,0 +1,67 @@
+# @magic-spells/scrolling-content
+
+## Purpose
+
+Infinite scrolling marquee web component — logo walls, tickers, announcement bars. Measures one pass of the author's content, clones it until the track covers the container, and translates the track on a rAF loop. No dependencies, no Shadow DOM. Registers `<scrolling-content>`, `<scrolling-track>`, `<scrolling-item>`.
+
+## Key files
+
+- `src/scrolling-content.js` — all three classes, single file, named exports at the bottom
+- `src/scrolling-content.css` — structural styles, imported `?inline` and injected as a cascade layer
+- `src/scrolling-content.d.ts` — hand-maintained declarations (keep in sync)
+- `scripts/build.mjs` — Vite + Rolldown build orchestrator (matches the split-text pattern)
+- `demo/index.html` — showcase page (port 3080); references `dist/…` so the same paths work in dev (served from `demo/`) and on Pages (deployed from `demo/`)
+- `demo/dist/` — dev-mode build output, **committed** so GitHub Pages can serve it
+
+## Architecture
+
+**Measurement is ResizeObserver-driven, not timeout-driven.** v1 had three layers of `setTimeout` (5ms in `connectedCallback`, a 5ms debounce, 1ms inside the recalc) guessing when layout had settled. `connectedCallback` now just builds the DOM and calls `observe()`; the RO's initial callback fires after layout, and fires *again* when late content (images, webfonts, an ancestor that starts hidden) changes the item's width. Both the host and `#items[0]` are observed. Don't reintroduce a timeout here — the RO is what makes the clone count derive from real widths.
+
+**Zero-width content must never produce a clone count.** `#fill()` bails when the measured item is under `MIN_ITEM_WIDTH` (1px), leaving `#loopDistance` at 0. This is not defensive padding: v1 computed `Math.ceil(containerWidth * 2 / itemWidth)`, which is `Infinity` at width 0, and the `for` loop below it froze the tab. The same zero fed `while (offsetX > 0) offsetX -= loopDistance` in the drag path — a second infinite loop. `#normalizeOffset()` now guards on `distance > 0` (which also rejects NaN) and folds with modulo instead of a `while`. Both regressions are worth a manual check if that math is ever touched.
+
+**`#syncPlayback()` is the single decision point** for whether the rAF loop is alive. `#shouldRun` ANDs together: connected, measurable, not `paused`, not hover-paused, not dragging, not reduced-motion. Every state change calls `#syncPlayback()` rather than calling `#startLoop`/`#stopLoop` directly — that's what keeps "explicit stop survives hovering out" true, which was a v1 bug (hover-leave unconditionally restarted).
+
+**Delta is clamped at 64ms.** rAF doesn't fire in a hidden tab, so the first frame back carries the whole hidden duration and would teleport the track. Same rationale and same constant as animation-engine.
+
+**Speed resolves from the cascade, on resize only.** `--scrolling-content-speed` beats the `speed` attribute beats 60. This replaced v1's `mobile-speed`/`desktop-speed`/`breakpoint` trio so breakpoints live in the stylesheet instead of being hard-coded in JS. **The stylesheet deliberately does not set a default for that property** — a default there would always beat the attribute, making `speed` dead. Resolution happens in `refresh()` (RO + `window.resize`) and on `speed` attribute change, never per frame: `getComputedStyle` is a style recalc and the tick is the hot path. `window.resize` is watched *in addition to* the RO because a media query can change without the host resizing (orientation, height queries).
+
+**Styles are injected as `@layer scrolling-content`, not shipped as a file to link.** These elements have no shadow root, so without the styles the component is simply broken — requiring a separate CSS import would make `import '@magic-spells/scrolling-content'` alone produce a broken marquee. The layer is what makes them overridable: unlayered author rules beat layered ones, so plain selectors win with no `!important`. This is the fix for v1 writing `display`/`gap`/`align-items` as inline styles that authors couldn't override at all. The CSS is imported `?inline` so there's one source of truth and one emitted artifact.
+
+**Clones are filler, and are treated as such.** `#cloneItem` sets `aria-hidden`, sets `inert`, and strips `id` from the clone and every descendant. v1 cloned raw, which put N copies of every id in the document and read the whole marquee N times to a screen reader.
+
+**Pointer capture, no window listeners.** `pointerdown` captures on the track, so move/up retarget there even outside the element — v1 bound `pointermove`/`pointerup`/`pointercancel` to `window` and never removed them. `setPointerCapture` is called **last and in a try/catch**: it throws when the pointer is already gone, and throwing mid-handler used to abandon the drag half-started with the loop never re-synced. Capture is an enhancement, not a precondition.
+
+**Touch axis detection is the browser's job.** `touch-action: pan-y` on the track means vertical swipes scroll the page and horizontal ones reach our pointer handlers. This deleted v1's whole `touchstart`/`touchmove`/`touchend` block with its `deltaX * 1.15 > deltaY` heuristic. Don't add touch handlers back.
+
+**Cleanup is real.** One `AbortController` covers every listener; `disconnectedCallback` aborts it, disconnects the RO, stops the loop, and ends any in-flight drag. `#attachListeners()` aborts the previous controller first, so re-connecting the element doesn't double-bind.
+
+## API
+
+- Attributes: `speed` (px/sec), `direction` (`left`/`right`), `paused` (boolean, reflected), `pause-on-hover="false"`, `drag="false"`, `fade` (boolean or CSS length)
+- CSS custom properties: `--scrolling-content-speed`, `--scrolling-content-gap`, `--scrolling-content-fade`, `--scrolling-content-item-padding`
+- Methods: `start()`, `stop()`, `refresh()`; properties `speed`, `direction`, `paused`
+- Events: `scrolling-content:start` / `:stop` / `:drag-start` / `:drag-end` — all bubble and compose
+
+`drag` is **not** named `draggable` on purpose: that's a real global HTML attribute and the names would collide.
+
+`fade` masks the host's left/right edges. The attribute value, when present, is written to `--scrolling-content-fade` as an inline style so the common case needs no accompanying CSS rule; the value is handed to the cascade rather than parsed, so any CSS length works.
+
+## Conventions
+
+- Plain JS + JSDoc, `.d.ts` maintained by hand — no TypeScript sources
+- Private fields with `#`; `const _ = this` only when a method uses `this` 4+ times
+- Registration guards (`if (!customElements.get(...))`) on all three elements
+- No Shadow DOM; `:not(:defined)` hides the host until definition
+- Single-file source — no `src/index.js`
+- Demo code blocks must show the REAL attributes and API driving each section
+
+## Commands
+
+- `npm run build` — production build to `dist/` (clean rebuild: unminified ESM, terser-minified UMD, then copies the `.d.ts`)
+- `npm run dev` — watch build to `demo/dist/` plus a Vite dev server at `http://localhost:3080`, using `@magic-spells/vite-plugin-live-reload`
+- `npm run lint` — ESLint over `src/` and `scripts/`
+- `npm run format` — Prettier write. **`demo/` is prettier-ignored**: the demo's code samples live in `white-space: pre` blocks and Prettier reflows them into garbage.
+
+## Demo & GitHub Pages
+
+Pages serves `demo/` as static files at `https://magic-spells.github.io/scrolling-content/demo/`, with a root `index.html` that redirects there and a `.nojekyll` alongside it. The demo references `dist/scrolling-content.esm.js` **relative to `demo/`**, which resolves to `demo/dist/` both in dev (Vite root is `demo/`) and on Pages. That means **`demo/dist/` is committed deliberately** — rebuild and commit it alongside any change meant to show up in the demo. The published `dist/` at the repo root is a separate, npm-only artifact.
