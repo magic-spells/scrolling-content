@@ -90,7 +90,7 @@ class ScrollingContent extends HTMLElement {
 	#speed = DEFAULTS.speed;
 
 	static get observedAttributes() {
-		return ['speed', 'direction', 'paused', 'pause-on-hover', 'drag'];
+		return ['speed', 'direction', 'paused', 'pause-on-hover', 'drag', 'fade'];
 	}
 
 	connectedCallback() {
@@ -101,6 +101,8 @@ class ScrollingContent extends HTMLElement {
 			_.#warnLegacyAttributes();
 			_.#buildDOM();
 		}
+
+		_.#applyFade();
 
 		_.#attachListeners();
 
@@ -131,6 +133,7 @@ class ScrollingContent extends HTMLElement {
 		if (!this.#initialized) return;
 
 		if (name === 'speed') this.#speed = this.#resolveSpeed();
+		if (name === 'fade') this.#applyFade();
 		this.#syncPlayback();
 	}
 
@@ -199,6 +202,17 @@ class ScrollingContent extends HTMLElement {
 				'Use the `speed` attribute (px/sec) and override it per breakpoint with the ' +
 				'`--scrolling-content-speed` custom property.'
 		);
+	}
+
+	/**
+	 * `fade` on its own uses the stylesheet's default width; `fade="3rem"` sets
+	 * the width inline so the common case needs no accompanying CSS rule. Any CSS
+	 * length works — the value is handed to the cascade, not parsed here.
+	 */
+	#applyFade() {
+		const value = this.getAttribute('fade');
+		if (value) this.style.setProperty('--scrolling-content-fade', value);
+		else this.style.removeProperty('--scrolling-content-fade');
 	}
 
 	#buildDOM() {

@@ -1,5 +1,5 @@
 //#region src/scrolling-content.css?inline
-var scrolling_content_default = "scrolling-content:not(:defined) {\n  visibility: hidden;\n}\n\nscrolling-content {\n  display: block;\n  overflow: hidden;\n}\n\nscrolling-track {\n  align-items: center;\n  gap: var(--scrolling-content-gap, 1rem);\n  will-change: transform;\n  touch-action: pan-y;\n  cursor: grab;\n  flex-wrap: nowrap;\n  width: max-content;\n  display: flex;\n}\n\nscrolling-content[drag=\"false\"] scrolling-track {\n  cursor: auto;\n  touch-action: auto;\n}\n\nscrolling-content[dragging] scrolling-track {\n  cursor: grabbing;\n  -webkit-user-select: none;\n  user-select: none;\n}\n\nscrolling-item {\n  align-items: center;\n  gap: var(--scrolling-content-gap, 1rem);\n  padding: var(--scrolling-content-item-padding, 0);\n  flex: none;\n  display: flex;\n}\n";
+var scrolling_content_default = "scrolling-content:not(:defined) {\n  visibility: hidden;\n}\n\nscrolling-content {\n  display: block;\n  overflow: hidden;\n}\n\nscrolling-content[fade] {\n  --_fade: var(--scrolling-content-fade, 4rem);\n  -webkit-mask-image: linear-gradient(90deg,\n		transparent,\n		#000 var(--_fade),\n		#000 calc(100% - var(--_fade)),\n		transparent);\n  -webkit-mask-image: linear-gradient(90deg,\n		transparent,\n		#000 var(--_fade),\n		#000 calc(100% - var(--_fade)),\n		transparent);\n  mask-image: linear-gradient(90deg,\n		transparent,\n		#000 var(--_fade),\n		#000 calc(100% - var(--_fade)),\n		transparent);\n}\n\nscrolling-track {\n  align-items: center;\n  gap: var(--scrolling-content-gap, 1rem);\n  will-change: transform;\n  touch-action: pan-y;\n  cursor: grab;\n  flex-wrap: nowrap;\n  width: max-content;\n  display: flex;\n}\n\nscrolling-content[drag=\"false\"] scrolling-track {\n  cursor: auto;\n  touch-action: auto;\n}\n\nscrolling-content[dragging] scrolling-track {\n  cursor: grabbing;\n  -webkit-user-select: none;\n  user-select: none;\n}\n\nscrolling-item {\n  align-items: center;\n  gap: var(--scrolling-content-gap, 1rem);\n  padding: var(--scrolling-content-item-padding, 0);\n  flex: none;\n  display: flex;\n}\n";
 //#endregion
 //#region src/scrolling-content.js
 function injectStyles() {
@@ -75,7 +75,8 @@ var ScrollingContent = class extends HTMLElement {
 			"direction",
 			"paused",
 			"pause-on-hover",
-			"drag"
+			"drag",
+			"fade"
 		];
 	}
 	connectedCallback() {
@@ -85,6 +86,7 @@ var ScrollingContent = class extends HTMLElement {
 			_.#warnLegacyAttributes();
 			_.#buildDOM();
 		}
+		_.#applyFade();
 		_.#attachListeners();
 		_.#resizeObserver = new ResizeObserver(() => _.refresh());
 		_.#resizeObserver.observe(_);
@@ -104,6 +106,7 @@ var ScrollingContent = class extends HTMLElement {
 		if (previousValue === currentValue) return;
 		if (!this.#initialized) return;
 		if (name === "speed") this.#speed = this.#resolveSpeed();
+		if (name === "fade") this.#applyFade();
 		this.#syncPlayback();
 	}
 	/** Resume scrolling (clears `paused`). */
@@ -152,6 +155,16 @@ var ScrollingContent = class extends HTMLElement {
 		if (!found.length) return;
 		legacyWarned = true;
 		console.warn(`<scrolling-content>: ${found.join(", ")} ${found.length > 1 ? "were" : "was"} removed in v2. Use the \`speed\` attribute (px/sec) and override it per breakpoint with the \`--scrolling-content-speed\` custom property.`);
+	}
+	/**
+	* `fade` on its own uses the stylesheet's default width; `fade="3rem"` sets
+	* the width inline so the common case needs no accompanying CSS rule. Any CSS
+	* length works — the value is handed to the cascade, not parsed here.
+	*/
+	#applyFade() {
+		const value = this.getAttribute("fade");
+		if (value) this.style.setProperty("--scrolling-content-fade", value);
+		else this.style.removeProperty("--scrolling-content-fade");
 	}
 	#buildDOM() {
 		const _ = this;

@@ -5,8 +5,10 @@
  * as a side effect of importing the module, and injects its structural styles
  * into a `@layer scrolling-content` cascade layer.
  *
- * Attribute-only options (no matching property): `pause-on-hover="false"`
- * and `drag="false"`.
+ * Attribute-only options (no matching property): `pause-on-hover="false"`,
+ * `drag="false"`, and `fade` — bare for the 4rem default, or any CSS length,
+ * which masks the left and right edges so content dissolves instead of
+ * clipping.
  */
 export declare class ScrollingContent extends HTMLElement {
 	/**

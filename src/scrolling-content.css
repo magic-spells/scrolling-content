@@ -9,6 +9,28 @@ scrolling-content {
 	overflow: hidden;
 }
 
+/* Opt-in edge fade. Items dissolve at the boundaries instead of being cut off
+   square by `overflow: hidden`, which is what sells the "endless" illusion. The
+   width comes from --scrolling-content-fade; the `fade` attribute can set it
+   per element. */
+scrolling-content[fade] {
+	--_fade: var(--scrolling-content-fade, 4rem);
+	-webkit-mask-image: linear-gradient(
+		90deg,
+		transparent,
+		#000 var(--_fade),
+		#000 calc(100% - var(--_fade)),
+		transparent
+	);
+	mask-image: linear-gradient(
+		90deg,
+		transparent,
+		#000 var(--_fade),
+		#000 calc(100% - var(--_fade)),
+		transparent
+	);
+}
+
 scrolling-track {
 	display: flex;
 	flex-wrap: nowrap;
