@@ -23,4 +23,6 @@ Thumbs.db
 # Package files
 *.tgz
 
-CLAUDE.md
+# Demo build output is committed for GitHub Pages, but Pages has no use for
+# sourcemaps — keep them out of the repo.
+demo/dist/*.map

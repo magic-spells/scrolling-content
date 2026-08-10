@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>@magic-spells/scrolling-content</title>
+		<!-- GitHub Pages serves this repo at /scrolling-content/, where the only page
+		     worth landing on is the demo. Without this file the root is a 404.
+		     Canonical points at the demo so the redirect doesn't split search results. -->
+		<link rel="canonical" href="https://magic-spells.github.io/scrolling-content/demo/" />
+		<meta http-equiv="refresh" content="0; url=./demo/" />
+		<style>
+			html {
+				background: #06090d;
+			}
+
+			body {
+				margin: 0;
+				min-height: 100vh;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-family: 'Outfit', system-ui, sans-serif;
+				color: #7c857f;
+				font-size: 0.9rem;
+				letter-spacing: 0.02em;
+			}
+
+			a {
+				color: #5ecabb;
+			}
+		</style>
+	</head>
+
+	<body>
+		<!-- Meta refresh alone strands anyone whose browser defers it; the link is the
+		     fallback, and replace() keeps the dead root out of session history. -->
+		<p>Redirecting to the <a href="./demo/">scrolling-content demo</a>&hellip;</p>
+		<script>
+			window.location.replace('./demo/');
+		</script>
+	</body>
+</html>

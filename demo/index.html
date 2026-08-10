@@ -1,303 +1,1474 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-    <title>Scrolling Content Demo - @magic-spells/scrolling-content</title>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Scrolling Content — @magic-spells</title>
 
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
+		<link
+			rel="icon"
+			href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2307060b'/%3E%3Cpath d='M3 11h26M3 21h26' stroke='%236b5fa0' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M9 16h14' stroke='%239b8cd8' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E"
+		/>
 
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        line-height: 1.6;
-        color: #333;
-        background: #f5f5f5;
-      }
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Outfit:wght@200;300;400;500&display=swap"
+			rel="stylesheet"
+		/>
 
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 2rem;
-      }
+		<style>
+			:root {
+				--bg-deep: #07060b;
+				--bg-card: #0f0e14;
+				--bg-card-hover: #15141c;
+				--border: #1e1c28;
+				--border-accent: #2a2636;
+				--accent: #9b8cd8;
+				--accent-dim: #6b5fa0;
+				--accent-glow: rgba(155, 140, 216, 0.12);
+				--cream: #f4f2f8;
+				--cream-dim: #b3aec2;
+				--text: #e6e3ee;
+				--text-dim: #6a6577;
+				--font-display: 'Cormorant Garamond', Georgia, serif;
+				--font-body: 'Outfit', system-ui, sans-serif;
+			}
 
-      h1 {
-        text-align: center;
-        margin-bottom: 2rem;
-        color: #2c3e50;
-        font-size: 2.5rem;
-        font-weight: 300;
-      }
+			* {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+			}
 
-      .demo-section {
-        margin: 3rem 0;
-        background: white;
-        border-radius: 12px;
-        padding: 2rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      }
+			html {
+				scroll-behavior: smooth;
+				background: var(--bg-deep);
+			}
 
-      .demo-section h2 {
-        margin-bottom: 1rem;
-        color: #34495e;
-        font-size: 1.5rem;
-        font-weight: 400;
-      }
+			body {
+				font-family: var(--font-body);
+				font-weight: 300;
+				color: var(--text);
+				background: var(--bg-deep);
+				overflow-x: hidden;
+				-webkit-font-smoothing: antialiased;
+			}
 
-      .demo-section p {
-        margin-bottom: 1.5rem;
-        color: #666;
-      }
+			/* ---- Noise overlay ---- */
+			body::before {
+				content: '';
+				position: fixed;
+				inset: 0;
+				z-index: 9999;
+				pointer-events: none;
+				opacity: 0.025;
+				background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+				background-repeat: repeat;
+				background-size: 256px;
+			}
 
-      /* Scrolling content styling */
-      scrolling-content {
-        width: 100%;
-        height: 60px;
-        display: block;
-        --scrolling-content-gap: 1rem;
-      }
+			/* ---- Hero ---- */
+			.hero {
+				position: relative;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				padding: 5rem 2rem 2.5rem;
+				text-align: center;
+				overflow: hidden;
+			}
 
-      /* Content item styling */
-      .content-item {
-        padding: 0.75rem 1.5rem;
-        border-radius: 6px;
-        white-space: nowrap;
-        font-weight: 500;
-        font-size: 0.9rem;
-      }
+			.hero::before {
+				content: '';
+				position: absolute;
+				top: -40%;
+				left: 50%;
+				transform: translateX(-50%);
+				width: 900px;
+				height: 900px;
+				max-width: 90%;
+				max-height: 90%;
+				background: radial-gradient(ellipse, var(--accent-glow) 0%, transparent 70%);
+				pointer-events: none;
+			}
 
-      /* Default theme */
-      .basic-demo {
-        --scrolling-content-gap: 1rem;
-      }
-      .basic-demo .content-item {
-        background: #667eea;
-        color: white;
-      }
+			.hero-badge {
+				position: relative;
+				font-family: var(--font-body);
+				font-weight: 400;
+				font-size: 0.7rem;
+				letter-spacing: 0.25em;
+				text-transform: uppercase;
+				color: var(--accent);
+				border: 1px solid var(--border-accent);
+				padding: 0.4em 1.4em;
+				border-radius: 100px;
+				margin-bottom: 2.5rem;
+				text-decoration: none;
+				transition:
+					border-color 0.3s ease,
+					color 0.3s ease;
+			}
 
-      /* Logo theme */
-      .logo-demo {
-        --scrolling-content-gap: 2rem;
-      }
-      .logo-demo .content-item {
-        background: #f8f9fa;
-        color: #2c3e50;
-        border: 1px solid #dee2e6;
-        font-weight: 600;
-      }
+			.hero-badge:hover {
+				border-color: var(--accent-dim);
+				color: var(--cream);
+			}
 
-      /* Fast theme */
-      .fast-demo {
-        --scrolling-content-gap: 0.5rem;
-      }
-      .fast-demo .content-item {
-        background: #ff6b6b;
-        color: white;
-        font-weight: 600;
-      }
+			.hero h1 {
+				position: relative;
+				font-family: var(--font-display);
+				font-weight: 300;
+				font-size: clamp(3rem, 9vw, 7.5rem);
+				line-height: 1.05;
+				color: var(--cream);
+				letter-spacing: -0.02em;
+				margin-bottom: 1.75rem;
+				max-width: 13ch;
+			}
 
-      /* Slow theme */
-      .slow-demo {
-        --scrolling-content-gap: 3rem;
-      }
-      .slow-demo .content-item {
-        background: #20bf6b;
-        color: white;
-        padding: 1rem 2rem;
-        font-size: 1rem;
-      }
+			.hero h1 em {
+				font-style: italic;
+				color: var(--accent);
+			}
 
-      .code-block {
-        background: #2d3748;
-        color: #e2e8f0;
-        padding: 1rem;
-        border-radius: 6px;
-        margin: 1rem 0;
-        overflow-x: auto;
-        font-family:
-          'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-        font-size: 0.9rem;
-      }
+			.hero-tagline {
+				position: relative;
+				max-width: 540px;
+				font-size: 1.05rem;
+				line-height: 1.7;
+				color: var(--text);
+				text-wrap: pretty;
+			}
 
-      .features {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 1rem;
-        margin: 2rem 0;
-      }
+			/* ---- Hero marquee band ---- */
+			.hero-band {
+				position: relative;
+				margin-top: 3.5rem;
+				width: 100vw;
+				border-top: 1px solid var(--border);
+				border-bottom: 1px solid var(--border);
+				padding: 1.5rem 0;
+				background: linear-gradient(
+					90deg,
+					transparent,
+					rgba(155, 140, 216, 0.045) 50%,
+					transparent
+				);
+			}
 
-      .feature {
-        background: #f8f9fa;
-        padding: 1.5rem;
-        border-radius: 8px;
-        border-left: 4px solid #667eea;
-      }
+			.hero-band .band-word {
+				font-family: var(--font-display);
+				font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+				font-style: italic;
+				color: var(--cream-dim);
+				white-space: nowrap;
+			}
 
-      .feature h3 {
-        color: #2c3e50;
-        margin-bottom: 0.5rem;
-      }
+			.hero-band .band-dot {
+				width: 6px;
+				height: 6px;
+				border-radius: 50%;
+				background: var(--accent-dim);
+				flex: 0 0 auto;
+			}
 
-      .feature p {
-        color: #666;
-        margin: 0;
-        font-size: 0.9rem;
-      }
+			/* ---- Install banner ---- */
+			.install-banner,
+			.install-specs {
+				display: flex;
+				justify-content: center;
+				gap: 2.5rem;
+				flex-wrap: wrap;
+				max-width: 680px;
+				padding: 0 1.5rem;
+			}
 
-      @media (max-width: 768px) {
-        .container {
-          padding: 1rem;
-        }
+			.install-banner {
+				margin: 4rem auto 1.25rem;
+			}
 
-        h1 {
-          font-size: 2rem;
-        }
+			.install-specs {
+				margin: 0 auto 3rem;
+			}
 
-        .content-item {
-          padding: 0.5rem 1rem;
-          font-size: 0.8rem;
-        }
+			.install-item {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 0.4rem;
+			}
 
-        .slow-demo .content-item {
-          padding: 0.75rem 1.5rem;
-          font-size: 0.9rem;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h1>Scrolling Content Demo</h1>
+			.install-label {
+				font-size: 0.65rem;
+				font-weight: 400;
+				letter-spacing: 0.18em;
+				text-transform: uppercase;
+				color: var(--text-dim);
+			}
 
-      <section>
-        <div class="demo-section">
-          <h2>Basic Example</h2>
-          <p>
-            A simple scrolling content with default settings. Hover to pause, drag to scroll
-            manually.
-          </p>
+			.install-value {
+				font-family: 'Courier New', monospace;
+				font-size: 0.88rem;
+				color: var(--cream);
+				background: var(--bg-card);
+				border: 1px solid var(--border);
+				border-radius: 8px;
+				padding: 0.5em 1.2em;
+				user-select: all;
+				cursor: copy;
+				transition: border-color 0.3s ease;
+			}
 
-          <scrolling-content class="basic-demo" mobile-speed="40" desktop-speed="60">
-            <scrolling-track>
-              <div class="content-item">🚀 Web Components</div>
-              <div class="content-item">⚡ Lightning Fast</div>
-              <div class="content-item">🎨 Fully Customizable</div>
-              <div class="content-item">📱 Mobile Friendly</div>
-              <div class="content-item">♿ Accessible</div>
-              <div class="content-item">🔧 Easy to Use</div>
-            </scrolling-track>
-          </scrolling-content>
+			.install-value:hover {
+				border-color: var(--accent-dim);
+			}
 
-          <pre
-            class="code-block"><code>&lt;scrolling-content mobile-speed="40" desktop-speed="60"&gt;
-  &lt;scrolling-track&gt;
-    &lt;div&gt;🚀 Web Components&lt;/div&gt;
-    &lt;div&gt;⚡ Lightning Fast&lt;/div&gt;
-    &lt;div&gt;🎨 Fully Customizable&lt;/div&gt;
-    &lt;!-- Component automatically wraps content and duplicates it --&gt;
-  &lt;/scrolling-track&gt;
-&lt;/scrolling-content&gt;
+			.install-size {
+				font-family: 'Courier New', monospace;
+				font-size: 0.88rem;
+				color: var(--accent);
+				padding: 0.5em 0;
+			}
 
-&lt;!-- Control gap with CSS --&gt;
-&lt;style&gt;
-  scrolling-content {
-    --scrolling-content-gap: 1rem;
-  }
-&lt;/style&gt;</code></pre>
-        </div>
-      </section>
+			.quick-start {
+				max-width: 760px;
+				margin: 0 auto 4rem;
+				padding: 0 1.5rem;
+			}
 
-      <section>
-        <div class="demo-section">
-          <h2>Logo Carousel</h2>
-          <p>Perfect for showcasing client logos or partner brands.</p>
+			.code-block-wide {
+				background: var(--bg-card);
+				border: 1px solid var(--border);
+				border-radius: 12px;
+				padding: 1.75rem 2rem;
+				font-family: 'Courier New', monospace;
+				font-size: 0.82rem;
+				line-height: 1.85;
+				color: var(--text);
+				white-space: pre-wrap;
+				overflow-x: auto;
+			}
 
-          <scrolling-content class="logo-demo" mobile-speed="30" desktop-speed="50">
-            <scrolling-track>
-              <div class="content-item">APPLE</div>
-              <div class="content-item">GOOGLE</div>
-              <div class="content-item">MICROSOFT</div>
-              <div class="content-item">AMAZON</div>
-              <div class="content-item">META</div>
-              <div class="content-item">NETFLIX</div>
-              <div class="content-item">SPOTIFY</div>
-            </scrolling-track>
-          </scrolling-content>
-        </div>
-      </section>
+			/* ---- Sections ---- */
+			.demos {
+				max-width: 1100px;
+				margin: 0 auto;
+				padding: 1rem 1.5rem 8rem;
+				display: flex;
+				flex-direction: column;
+				gap: 6rem;
+			}
 
-      <section>
-        <div class="demo-section">
-          <h2>Fast Animation</h2>
-          <p>High-speed scrolling for urgent announcements or quick updates.</p>
+			.demo-section {
+				position: relative;
+				background: var(--bg-card);
+				border: 1px solid var(--border);
+				border-radius: 16px;
+				padding: 3rem 2.5rem;
+				transition:
+					border-color 0.4s ease,
+					background 0.4s ease;
+			}
 
-          <scrolling-content class="fast-demo" mobile-speed="80" desktop-speed="120">
-            <scrolling-track>
-              <div class="content-item">⚡ Breaking News</div>
-              <div class="content-item">🔥 Hot Deals</div>
-              <div class="content-item">⏰ Limited Time</div>
-              <div class="content-item">💨 Act Fast</div>
-              <div class="content-item">🎯 Don't Miss Out</div>
-            </scrolling-track>
-          </scrolling-content>
-        </div>
-      </section>
+			.demo-section:hover {
+				border-color: var(--border-accent);
+				background: var(--bg-card-hover);
+			}
 
-      <section>
-        <div class="demo-section">
-          <h2>Slow & Smooth</h2>
-          <p>Gentle, readable scrolling for important information.</p>
 
-          <scrolling-content class="slow-demo" mobile-speed="20" desktop-speed="30">
-            <scrolling-track>
-              <div class="content-item">🌟 Premium Quality</div>
-              <div class="content-item">💎 Crafted with Care</div>
-              <div class="content-item">🎖️ Award Winning</div>
-            </scrolling-track>
-          </scrolling-content>
-        </div>
-      </section>
+			.demo-section h2 {
+				font-family: var(--font-display);
+				font-weight: 400;
+				font-size: clamp(2rem, 4vw, 3rem);
+				line-height: 1.1;
+				color: var(--cream);
+				letter-spacing: -0.01em;
+				margin-bottom: 1rem;
+			}
 
-      <section>
-        <div class="demo-section">
-          <h2>Features</h2>
-          <div class="features">
-            <div class="feature">
-              <h3>🎮 Interactive</h3>
-              <p>Hover to pause, drag to scroll manually. Touch-friendly on mobile devices.</p>
-            </div>
-            <div class="feature">
-              <h3>📱 Responsive</h3>
-              <p>Different speeds for mobile and desktop with customizable breakpoints.</p>
-            </div>
-            <div class="feature">
-              <h3>🔄 Infinite Loop</h3>
-              <p>Seamless infinite scrolling with automatic content duplication.</p>
-            </div>
-            <div class="feature">
-              <h3>⚡ Lightweight</h3>
-              <p>
-                Tiny file size with zero dependencies. Smooth animations that adapt to device
-                refresh rates.
-              </p>
-            </div>
-            <div class="feature">
-              <h3>🎨 Customizable</h3>
-              <p>Control speed, gap, breakpoints, and styling through data attributes and CSS.</p>
-            </div>
-            <div class="feature">
-              <h3>🎯 Easy Integration</h3>
-              <p>Drop-in web component that works with any framework or vanilla HTML.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
+			.demo-section h2 em {
+				font-style: italic;
+				color: var(--accent);
+			}
 
-    <script type="module" src="./scrolling-content.esm.js"></script>
-  </body>
+			.demo-desc {
+				font-size: 1rem;
+				color: var(--text);
+				line-height: 1.7;
+				margin-bottom: 2rem;
+				max-width: 640px;
+				text-wrap: pretty;
+			}
+
+			.demo-desc code {
+				font-family: 'Courier New', monospace;
+				font-size: 0.85em;
+				color: var(--accent);
+				background: rgba(0, 0, 0, 0.3);
+				padding: 0.1em 0.4em;
+				border-radius: 4px;
+			}
+
+			.demo-desc strong {
+				color: var(--cream);
+				font-weight: 500;
+			}
+
+			/* ---- Stage ---- */
+			.demo-stage {
+				background: linear-gradient(
+					135deg,
+					rgba(255, 255, 255, 0.01) 0%,
+					rgba(255, 255, 255, 0.03) 100%
+				);
+				border: 1px solid var(--border);
+				border-radius: 12px;
+				padding: 2.25rem 0;
+				margin-bottom: 1.75rem;
+				overflow: hidden;
+			}
+
+			.demo-stage.stacked {
+				display: flex;
+				flex-direction: column;
+				gap: 1.5rem;
+			}
+
+			/* ---- Content chips ---- */
+			.chip {
+				display: flex;
+				align-items: center;
+				gap: 0.6rem;
+				white-space: nowrap;
+				font-size: 0.9rem;
+				font-weight: 400;
+				letter-spacing: 0.02em;
+				color: var(--cream-dim);
+				background: rgba(255, 255, 255, 0.025);
+				border: 1px solid var(--border-accent);
+				border-radius: 100px;
+				padding: 0.6em 1.4em;
+			}
+
+			.chip svg {
+				width: 15px;
+				height: 15px;
+				flex: 0 0 auto;
+				stroke: var(--accent);
+				fill: none;
+				stroke-width: 1.5;
+			}
+
+			.wordmark {
+				font-family: var(--font-display);
+				font-size: 1.55rem;
+				letter-spacing: 0.16em;
+				text-transform: uppercase;
+				color: var(--cream-dim);
+				white-space: nowrap;
+				opacity: 0.72;
+				transition: opacity 0.3s ease;
+			}
+
+			.wordmark:hover {
+				opacity: 1;
+			}
+
+			.ticker-item {
+				display: flex;
+				align-items: baseline;
+				gap: 0.6rem;
+				white-space: nowrap;
+				font-family: 'Courier New', monospace;
+				font-size: 0.85rem;
+				color: var(--cream-dim);
+			}
+
+			.ticker-item .sym {
+				color: var(--cream);
+				letter-spacing: 0.08em;
+			}
+
+			.ticker-item .up {
+				color: #7fbf8f;
+			}
+
+			.ticker-item .down {
+				color: #d1786a;
+			}
+
+			.headline-item {
+				font-family: var(--font-display);
+				font-size: clamp(1.5rem, 3vw, 2.1rem);
+				font-style: italic;
+				color: var(--cream);
+				white-space: nowrap;
+			}
+
+			.sep-dot {
+				width: 5px;
+				height: 5px;
+				border-radius: 50%;
+				background: var(--accent-dim);
+				flex: 0 0 auto;
+			}
+
+			/* ---- Controls ---- */
+			.controls {
+				display: flex;
+				gap: 0.75rem;
+				flex-wrap: wrap;
+				align-items: center;
+			}
+
+			.controls + .controls {
+				margin-top: 0.75rem;
+			}
+
+			.btn {
+				font-family: var(--font-body);
+				font-weight: 400;
+				font-size: 0.7rem;
+				letter-spacing: 0.18em;
+				text-transform: uppercase;
+				color: var(--cream);
+				background: transparent;
+				border: 1px solid var(--border-accent);
+				padding: 0.7em 1.6em;
+				border-radius: 100px;
+				cursor: pointer;
+				transition: all 0.3s ease;
+			}
+
+			.btn:hover {
+				border-color: var(--accent-dim);
+				color: var(--accent);
+				box-shadow: 0 0 20px rgba(155, 140, 216, 0.1);
+			}
+
+			.btn.is-active {
+				border-color: var(--accent);
+				color: var(--accent);
+				background: var(--accent-glow);
+			}
+
+			.btn:active {
+				transform: translateY(1px);
+			}
+
+			.control-label {
+				font-size: 0.65rem;
+				letter-spacing: 0.18em;
+				text-transform: uppercase;
+				color: var(--text-dim);
+				margin-right: 0.25rem;
+			}
+
+			/* ---- Sliders ---- */
+			.slider-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+				gap: 1.25rem 2rem;
+				margin-bottom: 1.5rem;
+			}
+
+			.slider-row {
+				display: flex;
+				flex-direction: column;
+				gap: 0.4rem;
+			}
+
+			.slider-head {
+				display: flex;
+				align-items: baseline;
+				justify-content: space-between;
+				gap: 0.5rem;
+			}
+
+			.slider-label {
+				font-size: 0.65rem;
+				letter-spacing: 0.18em;
+				text-transform: uppercase;
+				color: var(--text-dim);
+			}
+
+			.slider-value {
+				font-family: 'Courier New', monospace;
+				font-size: 0.78rem;
+				color: var(--accent);
+			}
+
+			input[type='range'] {
+				-webkit-appearance: none;
+				appearance: none;
+				width: 100%;
+				height: 2px;
+				background: var(--border-accent);
+				border-radius: 1px;
+				outline: none;
+				cursor: pointer;
+			}
+
+			input[type='range']::-webkit-slider-thumb {
+				-webkit-appearance: none;
+				appearance: none;
+				width: 14px;
+				height: 14px;
+				border-radius: 50%;
+				background: var(--accent);
+				border: none;
+				box-shadow: 0 0 16px rgba(155, 140, 216, 0.4);
+				transition: box-shadow 0.2s ease;
+			}
+
+			input[type='range']::-webkit-slider-thumb:hover {
+				box-shadow: 0 0 24px rgba(155, 140, 216, 0.6);
+			}
+
+			input[type='range']::-moz-range-thumb {
+				width: 14px;
+				height: 14px;
+				border-radius: 50%;
+				background: var(--accent);
+				border: none;
+				box-shadow: 0 0 16px rgba(155, 140, 216, 0.4);
+			}
+
+			/* ---- Live readout ---- */
+			.readout {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 2rem;
+				padding: 1rem 1.25rem;
+				border: 1px solid var(--border);
+				border-radius: 10px;
+				background: rgba(0, 0, 0, 0.25);
+				margin-bottom: 1.5rem;
+			}
+
+			.readout-cell {
+				display: flex;
+				flex-direction: column;
+				gap: 0.3rem;
+			}
+
+			.readout-key {
+				font-size: 0.6rem;
+				letter-spacing: 0.2em;
+				text-transform: uppercase;
+				color: var(--text-dim);
+			}
+
+			.readout-val {
+				font-family: 'Courier New', monospace;
+				font-size: 0.95rem;
+				color: var(--accent);
+			}
+
+			/* ---- Code block ---- */
+			.code-block {
+				background: var(--bg-deep);
+				border: 1px solid var(--border);
+				border-radius: 10px;
+				padding: 1.25rem 1.5rem;
+				overflow-x: auto;
+				margin-top: 1.75rem;
+				font-family: 'Courier New', monospace;
+				font-size: 0.78rem;
+				line-height: 1.85;
+				color: var(--text);
+				white-space: pre;
+				-webkit-overflow-scrolling: touch;
+			}
+
+			.code-block .hl-tag,
+			.code-block-wide .hl-tag {
+				color: var(--accent);
+			}
+			.code-block .hl-attr,
+			.code-block-wide .hl-attr {
+				color: #8fb8dd;
+			}
+			.code-block .hl-val,
+			.code-block-wide .hl-val {
+				color: #d68a72;
+			}
+			.code-block .hl-cm,
+			.code-block-wide .hl-cm {
+				color: var(--text-dim);
+				font-style: italic;
+			}
+			.code-block .hl-prop,
+			.code-block-wide .hl-prop {
+				color: #c3b6ee;
+			}
+
+			/* ---- Reference tables ---- */
+			.ref-heading {
+				font-family: var(--font-body);
+				font-weight: 400;
+				font-size: 0.7rem;
+				letter-spacing: 0.22em;
+				text-transform: uppercase;
+				color: var(--accent);
+				margin: 2.25rem 0 1rem;
+			}
+
+			.ref-heading:first-of-type {
+				margin-top: 0.5rem;
+			}
+
+			.ref-table {
+				border: 1px solid var(--border);
+				border-radius: 10px;
+				overflow: hidden;
+				font-size: 0.85rem;
+			}
+
+			.ref-row {
+				display: grid;
+				grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 2fr);
+				gap: 1rem;
+				padding: 0.75rem 1.25rem;
+				border-top: 1px solid var(--border);
+				color: var(--text);
+				line-height: 1.55;
+				align-items: baseline;
+			}
+
+			.ref-row:first-child {
+				border-top: none;
+			}
+
+			.ref-row.ref-head {
+				background: rgba(0, 0, 0, 0.2);
+				font-family: var(--font-body);
+				font-size: 0.65rem;
+				font-weight: 400;
+				letter-spacing: 0.18em;
+				text-transform: uppercase;
+				color: var(--cream-dim);
+			}
+
+			.ref-row code {
+				font-family: 'Courier New', monospace;
+				font-size: 0.78rem;
+				color: var(--cream);
+				background: rgba(0, 0, 0, 0.3);
+				padding: 0.12em 0.45em;
+				border-radius: 4px;
+				word-break: break-word;
+			}
+
+			/* ---- Footer ---- */
+			footer {
+				max-width: 1100px;
+				margin: 0 auto;
+				padding: 2rem 1.5rem 4rem;
+				border-top: 1px solid var(--border);
+				text-align: center;
+			}
+
+			footer p {
+				font-family: 'Courier New', monospace;
+				font-size: 0.72rem;
+				color: var(--text-dim);
+				letter-spacing: 0.04em;
+			}
+
+			footer a {
+				color: var(--accent-dim);
+			}
+
+			/* ---- Section 03: speed driven by breakpoints ---- */
+			.responsive-demo {
+				--scrolling-content-speed: 110;
+			}
+
+			@media (max-width: 900px) {
+				.responsive-demo {
+					--scrolling-content-speed: 55;
+				}
+			}
+
+			@media (max-width: 600px) {
+				.responsive-demo {
+					--scrolling-content-speed: 25;
+				}
+			}
+
+			/* ---- Responsive ---- */
+			@media (max-width: 640px) {
+				.demo-section {
+					padding: 2rem 1.5rem;
+				}
+				.demos {
+					gap: 4rem;
+				}
+				.install-banner,
+				.install-specs {
+					gap: 1.5rem;
+				}
+				.ref-row {
+					grid-template-columns: 1fr;
+					gap: 0.35rem;
+				}
+				.ref-row.ref-head {
+					display: none;
+				}
+			}
+		</style>
+	</head>
+
+	<body>
+		<!-- ======== HERO ======== -->
+		<header class="hero">
+			<a
+				class="hero-badge"
+				href="https://github.com/magic-spells/scrolling-content"
+				target="_blank"
+				rel="noopener"
+				>@magic-spells/scrolling-content</a
+			>
+			<h1>Content that <em>never</em> stops.</h1>
+			<p class="hero-tagline">
+				A 2.5&nbsp;kB web component that loops any row of markup forever. Hover to pause, drag to
+				scrub, and set the speed from a media query.
+			</p>
+
+			<div class="hero-band">
+				<scrolling-content speed="45" fade="10rem">
+					<scrolling-track>
+						<span class="band-word">infinite</span>
+						<span class="band-dot"></span>
+						<span class="band-word">seamless</span>
+						<span class="band-dot"></span>
+						<span class="band-word">draggable</span>
+						<span class="band-dot"></span>
+						<span class="band-word">dependency&#8209;free</span>
+						<span class="band-dot"></span>
+						<span class="band-word">accessible</span>
+						<span class="band-dot"></span>
+					</scrolling-track>
+				</scrolling-content>
+			</div>
+		</header>
+
+		<!-- ======== INSTALL ======== -->
+		<div class="install-banner">
+			<div class="install-item">
+				<span class="install-label">Install</span>
+				<code class="install-value">npm i @magic-spells/scrolling-content</code>
+			</div>
+		</div>
+		<div class="install-specs">
+			<div class="install-item">
+				<span class="install-label">JS (gzip)</span>
+				<span class="install-size" data-size-js>2.5 KB</span>
+			</div>
+			<div class="install-item">
+				<span class="install-label">Stylesheet</span>
+				<span class="install-size">injected</span>
+			</div>
+			<div class="install-item">
+				<span class="install-label">Dependencies</span>
+				<span class="install-size">0</span>
+			</div>
+		</div>
+
+		<!-- ======== QUICK START ======== -->
+		<div class="quick-start">
+			<div class="code-block-wide">
+<span class="hl-cm">// install</span>
+npm i @magic-spells/scrolling-content
+
+<span class="hl-cm">// import — registers the elements and injects its own styles</span>
+<span class="hl-tag">import</span> <span class="hl-val">'@magic-spells/scrolling-content'</span>
+
+<span class="hl-cm">// or via CDN</span>
+&lt;<span class="hl-tag">script</span> <span class="hl-attr">src</span>=<span class="hl-val">"https://unpkg.com/@magic-spells/scrolling-content"</span>&gt;&lt;/<span class="hl-tag">script</span>&gt;
+
+<span class="hl-cm">// use it — loose children get wrapped and cloned automatically</span>
+&lt;<span class="hl-tag">scrolling-content</span> <span class="hl-attr">speed</span>=<span class="hl-val">"60"</span>&gt;
+  &lt;<span class="hl-tag">scrolling-track</span>&gt;
+    &lt;<span class="hl-tag">span</span>&gt;One&lt;/<span class="hl-tag">span</span>&gt;
+    &lt;<span class="hl-tag">span</span>&gt;Two&lt;/<span class="hl-tag">span</span>&gt;
+    &lt;<span class="hl-tag">span</span>&gt;Three&lt;/<span class="hl-tag">span</span>&gt;
+  &lt;/<span class="hl-tag">scrolling-track</span>&gt;
+&lt;/<span class="hl-tag">scrolling-content</span>&gt;
+			</div>
+		</div>
+
+		<!-- ======== DEMOS ======== -->
+		<main class="demos">
+			<!-- ---- 01 Logo wall ---- -->
+			<section class="demo-section">
+				<h2>A logo wall that <em>fills itself</em>.</h2>
+				<p class="demo-desc">
+					Give it however many items you have. The component measures one pass of your content and
+					clones it until the track covers twice the container, so the loop never shows a gap — six
+					logos or sixty, same markup. Clones are marked <code>aria-hidden</code> and
+					<code>inert</code>, and their <code>id</code>s are stripped, so the duplication stays
+					invisible to screen readers and to <code>getElementById</code>.
+				</p>
+				<div class="demo-stage">
+					<scrolling-content speed="40" fade>
+						<scrolling-track>
+							<span class="wordmark">Northwind</span>
+							<span class="sep-dot"></span>
+							<span class="wordmark">Ashgrove</span>
+							<span class="sep-dot"></span>
+							<span class="wordmark">Peregrine</span>
+							<span class="sep-dot"></span>
+							<span class="wordmark">Halcyon</span>
+							<span class="sep-dot"></span>
+							<span class="wordmark">Meridian</span>
+							<span class="sep-dot"></span>
+							<span class="wordmark">Stillwater</span>
+							<span class="sep-dot"></span>
+						</scrolling-track>
+					</scrolling-content>
+				</div>
+				<div class="code-block">&lt;<span class="hl-tag">scrolling-content</span> <span class="hl-attr">speed</span>=<span class="hl-val">"40"</span>&gt;
+  &lt;<span class="hl-tag">scrolling-track</span>&gt;
+    &lt;<span class="hl-tag">span</span> <span class="hl-attr">class</span>=<span class="hl-val">"wordmark"</span>&gt;Northwind&lt;/<span class="hl-tag">span</span>&gt;
+    &lt;<span class="hl-tag">span</span> <span class="hl-attr">class</span>=<span class="hl-val">"sep-dot"</span>&gt;&lt;/<span class="hl-tag">span</span>&gt;
+    <span class="hl-cm">…</span>
+  &lt;/<span class="hl-tag">scrolling-track</span>&gt;
+&lt;/<span class="hl-tag">scrolling-content</span>&gt;</div>
+			</section>
+
+			<!-- ---- 02 Speed & direction ---- -->
+			<section class="demo-section">
+				<h2>Pixels per second, <em>either way</em>.</h2>
+				<p class="demo-desc">
+					<code>speed</code> is plain px/sec — not a duration, so adding items never changes how fast
+					it moves. <code>direction</code> flips it. Both are live: set the property or the attribute
+					and the next frame picks it up, mid-scroll, without a restart.
+				</p>
+
+				<div class="demo-stage">
+					<scrolling-content id="tune-demo" speed="60" fade>
+						<scrolling-track>
+							<span class="chip">
+								<svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18" /></svg>Composable
+							</span>
+							<span class="chip">
+								<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /></svg>Light DOM
+							</span>
+							<span class="chip">
+								<svg viewBox="0 0 24 24"><path d="M4 18L20 6M4 6l16 12" /></svg>No deps
+							</span>
+							<span class="chip">
+								<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" /></svg
+								>Framework-free
+							</span>
+							<span class="chip">
+								<svg viewBox="0 0 24 24"><path d="M3 12h6l3-7 3 14 3-7h3" /></svg>rAF-driven
+							</span>
+						</scrolling-track>
+					</scrolling-content>
+				</div>
+
+				<div class="slider-grid">
+					<div class="slider-row">
+						<div class="slider-head">
+							<span class="slider-label">Speed</span>
+							<span class="slider-value" id="tune-speed-out">60 px/s</span>
+						</div>
+						<input type="range" id="tune-speed" min="0" max="300" step="5" value="60" />
+					</div>
+				</div>
+
+				<div class="controls">
+					<span class="control-label">Direction</span>
+					<button class="btn is-active" data-direction="left" data-target="tune-demo">Left</button>
+					<button class="btn" data-direction="right" data-target="tune-demo">Right</button>
+				</div>
+
+				<div class="code-block"><span class="hl-cm">// live, mid-scroll — no restart</span>
+marquee.<span class="hl-prop">speed</span> = <span class="hl-val">120</span>
+marquee.<span class="hl-prop">direction</span> = <span class="hl-val">'right'</span>
+
+<span class="hl-cm">// same thing, declaratively</span>
+&lt;<span class="hl-tag">scrolling-content</span> <span class="hl-attr">speed</span>=<span class="hl-val">"120"</span> <span class="hl-attr">direction</span>=<span class="hl-val">"right"</span>&gt;<span class="hl-cm">…</span>&lt;/<span class="hl-tag">scrolling-content</span>&gt;</div>
+			</section>
+
+			<!-- ---- 03 Breakpoint speed ---- -->
+			<section class="demo-section">
+				<h2>Set the speed from a <em>media query</em>.</h2>
+				<p class="demo-desc">
+					This is why v2 dropped <code>mobile-speed</code> / <code>desktop-speed</code> /
+					<code>breakpoint</code>. Instead of one hard-coded breakpoint baked into the component, the
+					speed reads from the <code>--scrolling-content-speed</code> custom property — so it obeys
+					whatever breakpoints your design system already has, media queries and container queries
+					alike. <strong>Resize this window</strong> and watch the readout change.
+				</p>
+
+				<div class="readout">
+					<div class="readout-cell">
+						<span class="readout-key">Viewport</span>
+						<span class="readout-val" id="rs-width">—</span>
+					</div>
+					<div class="readout-cell">
+						<span class="readout-key">Resolved speed</span>
+						<span class="readout-val" id="rs-speed">—</span>
+					</div>
+					<div class="readout-cell">
+						<span class="readout-key">Matched rule</span>
+						<span class="readout-val" id="rs-rule">—</span>
+					</div>
+				</div>
+
+				<div class="demo-stage">
+					<scrolling-content class="responsive-demo" id="rs-demo" fade>
+						<scrolling-track>
+							<span class="chip">110 px/s above 900</span>
+							<span class="chip">55 px/s under 900</span>
+							<span class="chip">25 px/s under 600</span>
+							<span class="chip">resize me</span>
+							<span class="chip">no JS breakpoint config</span>
+						</scrolling-track>
+					</scrolling-content>
+				</div>
+
+				<div class="code-block"><span class="hl-prop">.marquee</span> { <span class="hl-attr">--scrolling-content-speed</span>: <span class="hl-val">110</span>; }
+
+<span class="hl-tag">@media</span> (max-width: 900px) {
+  <span class="hl-prop">.marquee</span> { <span class="hl-attr">--scrolling-content-speed</span>: <span class="hl-val">55</span>; }
+}
+
+<span class="hl-tag">@media</span> (max-width: 600px) {
+  <span class="hl-prop">.marquee</span> { <span class="hl-attr">--scrolling-content-speed</span>: <span class="hl-val">25</span>; }
+}
+
+<span class="hl-cm">// The value is unitless and read as px/sec. It's resolved on resize,</span>
+<span class="hl-cm">// not per frame — reading computed style 60x a second would be a</span>
+<span class="hl-cm">// style recalc on the hot path.</span></div>
+			</section>
+
+			<!-- ---- 04 Interaction ---- -->
+			<section class="demo-section">
+				<h2>Hover to pause. <em>Drag to scrub.</em></h2>
+				<p class="demo-desc">
+					Both are on by default and both are one attribute away from off. Dragging uses pointer
+					capture, so the gesture survives leaving the element and there are no window-level
+					listeners to leak. On touch, <code>touch-action: pan-y</code> lets the browser arbitrate:
+					vertical swipes scroll the page, horizontal ones scrub the track — no axis-detection
+					heuristic in JS.
+				</p>
+
+				<div class="demo-stage">
+					<scrolling-content id="ix-demo" speed="55" fade>
+						<scrolling-track>
+							<span class="headline-item">Grab me and throw me sideways</span>
+							<span class="sep-dot"></span>
+							<span class="headline-item">Hover and I hold still</span>
+							<span class="sep-dot"></span>
+							<span class="headline-item">Let go and I carry on</span>
+							<span class="sep-dot"></span>
+						</scrolling-track>
+					</scrolling-content>
+				</div>
+
+				<div class="controls">
+					<span class="control-label">Toggles</span>
+					<button class="btn is-active" id="ix-hover">Pause on hover</button>
+					<button class="btn is-active" id="ix-drag">Drag</button>
+					<button class="btn" id="ix-play">Pause</button>
+				</div>
+
+				<div class="readout" style="margin-top: 1.5rem; margin-bottom: 0">
+					<div class="readout-cell">
+						<span class="readout-key">Last event</span>
+						<span class="readout-val" id="ix-event">—</span>
+					</div>
+					<div class="readout-cell">
+						<span class="readout-key">Paused</span>
+						<span class="readout-val" id="ix-paused">false</span>
+					</div>
+				</div>
+
+				<div class="code-block">&lt;<span class="hl-tag">scrolling-content</span> <span class="hl-attr">pause-on-hover</span>=<span class="hl-val">"false"</span>&gt;<span class="hl-cm">…</span>&lt;/<span class="hl-tag">scrolling-content</span>&gt;
+&lt;<span class="hl-tag">scrolling-content</span> <span class="hl-attr">drag</span>=<span class="hl-val">"false"</span>&gt;<span class="hl-cm">…</span>&lt;/<span class="hl-tag">scrolling-content</span>&gt;
+&lt;<span class="hl-tag">scrolling-content</span> <span class="hl-attr">paused</span>&gt;<span class="hl-cm">…</span>&lt;/<span class="hl-tag">scrolling-content</span>&gt;
+
+<span class="hl-cm">// four events, all bubbling</span>
+marquee.<span class="hl-prop">addEventListener</span>(<span class="hl-val">'scrolling-content:drag-start'</span>, onScrub)
+marquee.<span class="hl-prop">addEventListener</span>(<span class="hl-val">'scrolling-content:drag-end'</span>, onScrub)
+marquee.<span class="hl-prop">addEventListener</span>(<span class="hl-val">'scrolling-content:start'</span>, onState)
+marquee.<span class="hl-prop">addEventListener</span>(<span class="hl-val">'scrolling-content:stop'</span>, onState)</div>
+			</section>
+
+			<!-- ---- 05 Stacked rows ---- -->
+			<section class="demo-section">
+				<h2>Stack them, <em>oppose them</em>.</h2>
+				<p class="demo-desc">
+					Each instance owns its own loop and its own measurements, so rows at different speeds and
+					directions stay independent. Nothing is shared and nothing is global — drop as many on a
+					page as the design wants.
+				</p>
+
+				<div class="demo-stage stacked">
+					<scrolling-content speed="70" fade>
+						<scrolling-track>
+							<span class="ticker-item"
+								><span class="sym">NRTH</span> 142.60 <span class="up">▲ 1.24%</span></span
+							>
+							<span class="ticker-item"
+								><span class="sym">ASHG</span> 88.10 <span class="down">▼ 0.42%</span></span
+							>
+							<span class="ticker-item"
+								><span class="sym">PRGN</span> 311.75 <span class="up">▲ 3.08%</span></span
+							>
+							<span class="ticker-item"
+								><span class="sym">HLCY</span> 27.94 <span class="up">▲ 0.61%</span></span
+							>
+							<span class="ticker-item"
+								><span class="sym">MRDN</span> 205.33 <span class="down">▼ 1.87%</span></span
+							>
+							<span class="ticker-item"
+								><span class="sym">STWR</span> 64.02 <span class="up">▲ 0.19%</span></span
+							>
+						</scrolling-track>
+					</scrolling-content>
+
+					<scrolling-content speed="35" direction="right" fade>
+						<scrolling-track>
+							<span class="chip">slower</span>
+							<span class="chip">opposite direction</span>
+							<span class="chip">independent loop</span>
+							<span class="chip">independent measurements</span>
+							<span class="chip">no shared state</span>
+						</scrolling-track>
+					</scrolling-content>
+
+					<scrolling-content speed="100" fade>
+						<scrolling-track>
+							<span class="wordmark">fast</span>
+							<span class="sep-dot"></span>
+							<span class="wordmark">lane</span>
+							<span class="sep-dot"></span>
+							<span class="wordmark">100 px/s</span>
+							<span class="sep-dot"></span>
+						</scrolling-track>
+					</scrolling-content>
+				</div>
+
+				<div class="code-block">&lt;<span class="hl-tag">scrolling-content</span> <span class="hl-attr">speed</span>=<span class="hl-val">"70"</span>&gt;<span class="hl-cm">…</span>&lt;/<span class="hl-tag">scrolling-content</span>&gt;
+&lt;<span class="hl-tag">scrolling-content</span> <span class="hl-attr">speed</span>=<span class="hl-val">"35"</span> <span class="hl-attr">direction</span>=<span class="hl-val">"right"</span>&gt;<span class="hl-cm">…</span>&lt;/<span class="hl-tag">scrolling-content</span>&gt;
+&lt;<span class="hl-tag">scrolling-content</span> <span class="hl-attr">speed</span>=<span class="hl-val">"100"</span>&gt;<span class="hl-cm">…</span>&lt;/<span class="hl-tag">scrolling-content</span>&gt;</div>
+			</section>
+
+			<!-- ---- Edge fade ---- -->
+			<section class="demo-section">
+				<h2>Edges that <em>dissolve</em>.</h2>
+				<p class="demo-desc">
+					<code>overflow: hidden</code> cuts items off with a hard vertical edge, which reads as a
+					box with content sliding behind it. Add <code>fade</code> and the boundaries become a mask
+					instead, so items thin out into the background — the thing that actually sells "endless".
+					Bare <code>fade</code> uses a 4rem ramp; <code>fade="8rem"</code> or the
+					<code>--scrolling-content-fade</code> property sets your own. Every marquee on this page
+					uses it.
+				</p>
+
+				<div class="demo-stage stacked">
+					<scrolling-content speed="45">
+						<scrolling-track>
+							<span class="chip">no fade — hard clipped edges</span>
+							<span class="chip">notice the abrupt cut</span>
+							<span class="chip">content just stops</span>
+							<span class="chip">reads as a box</span>
+						</scrolling-track>
+					</scrolling-content>
+
+					<scrolling-content speed="45" fade>
+						<scrolling-track>
+							<span class="chip">fade — the 4rem default</span>
+							<span class="chip">items thin out</span>
+							<span class="chip">no visible boundary</span>
+							<span class="chip">reads as endless</span>
+						</scrolling-track>
+					</scrolling-content>
+
+					<scrolling-content speed="45" fade="12rem">
+						<scrolling-track>
+							<span class="chip">fade="12rem" — a long ramp</span>
+							<span class="chip">any CSS length works</span>
+							<span class="chip">good for wide hero bands</span>
+							<span class="chip">or a vignette look</span>
+						</scrolling-track>
+					</scrolling-content>
+				</div>
+
+				<div class="code-block">&lt;<span class="hl-tag">scrolling-content</span> <span class="hl-attr">fade</span>&gt;<span class="hl-cm">…</span>&lt;/<span class="hl-tag">scrolling-content</span>&gt;              <span class="hl-cm">// 4rem default</span>
+&lt;<span class="hl-tag">scrolling-content</span> <span class="hl-attr">fade</span>=<span class="hl-val">"12rem"</span>&gt;<span class="hl-cm">…</span>&lt;/<span class="hl-tag">scrolling-content</span>&gt;     <span class="hl-cm">// any CSS length</span>
+
+<span class="hl-cm">/* or from the stylesheet, so it can vary by breakpoint */</span>
+<span class="hl-prop">.marquee</span> { <span class="hl-attr">--scrolling-content-fade</span>: <span class="hl-val">10vw</span>; }</div>
+			</section>
+
+			<!-- ---- 06 Robustness ---- -->
+			<section class="demo-section">
+				<h2>The <em>unglamorous</em> half.</h2>
+				<p class="demo-desc">
+					Most of v2 is the boring correctness a marquee needs to survive a real page. Content that
+					measures late — images, webfonts, an ancestor that starts hidden — is picked up by a
+					<code>ResizeObserver</code> instead of a hopeful <code>setTimeout</code>, so the clone
+					count is derived from real widths every time. The per-frame delta is clamped, so returning
+					to a backgrounded tab resumes instead of teleporting. And
+					<code>prefers-reduced-motion</code> stops the loop outright while leaving drag intact — the
+					marquee becomes a scrubbable strip rather than perpetual motion.
+				</p>
+
+				<div class="demo-stage">
+					<scrolling-content speed="50" id="rm-demo" fade>
+						<scrolling-track>
+							<span class="chip">ResizeObserver, not setTimeout</span>
+							<span class="chip">delta clamped at 64 ms</span>
+							<span class="chip">zero-width content can't hang the tab</span>
+							<span class="chip">listeners torn down on disconnect</span>
+							<span class="chip">clones hidden from AT</span>
+						</scrolling-track>
+					</scrolling-content>
+				</div>
+
+				<div class="readout" style="margin-bottom: 0">
+					<div class="readout-cell">
+						<span class="readout-key">prefers-reduced-motion</span>
+						<span class="readout-val" id="rm-state">—</span>
+					</div>
+					<div class="readout-cell">
+						<span class="readout-key">This marquee</span>
+						<span class="readout-val" id="rm-effect">—</span>
+					</div>
+				</div>
+			</section>
+
+			<!-- ---- 07 Reference ---- -->
+			<section class="demo-section">
+				<h2>The whole API, <em>on one screen</em>.</h2>
+				<p class="demo-desc">
+					Six attributes, four custom properties, three methods, four events. That's everything.
+				</p>
+
+				<h3 class="ref-heading">Attributes</h3>
+				<div class="ref-table">
+					<div class="ref-row ref-head">
+						<div>Attribute</div>
+						<div>Default</div>
+						<div>Description</div>
+					</div>
+					<div class="ref-row">
+						<div><code>speed</code></div>
+						<div><code>60</code></div>
+						<div>
+							Scroll speed in px/sec. Overridden by
+							<code>--scrolling-content-speed</code> when that property is set.
+						</div>
+					</div>
+					<div class="ref-row">
+						<div><code>direction</code></div>
+						<div><code>left</code></div>
+						<div><code>left</code> · <code>right</code></div>
+					</div>
+					<div class="ref-row">
+						<div><code>paused</code></div>
+						<div>absent</div>
+						<div>Boolean. Reflected — this is the state <code>start()</code> and <code>stop()</code> write.</div>
+					</div>
+					<div class="ref-row">
+						<div><code>pause-on-hover</code></div>
+						<div><code>true</code></div>
+						<div>Set <code>"false"</code> to keep scrolling under the cursor.</div>
+					</div>
+					<div class="ref-row">
+						<div><code>fade</code></div>
+						<div>absent</div>
+						<div>
+							Boolean, or a CSS length. Masks the left and right edges so content dissolves instead
+							of clipping. Bare <code>fade</code> uses <code>4rem</code>.
+						</div>
+					</div>
+					<div class="ref-row">
+						<div><code>drag</code></div>
+						<div><code>true</code></div>
+						<div>
+							Set <code>"false"</code> to disable scrubbing. Deliberately not named
+							<code>draggable</code>, which is a real global HTML attribute.
+						</div>
+					</div>
+				</div>
+
+				<h3 class="ref-heading">CSS Custom Properties</h3>
+				<div class="ref-table">
+					<div class="ref-row ref-head">
+						<div>Property</div>
+						<div>Default</div>
+						<div>Description</div>
+					</div>
+					<div class="ref-row">
+						<div><code>--scrolling-content-speed</code></div>
+						<div>unset</div>
+						<div>
+							Unitless px/sec. Wins over the <code>speed</code> attribute, so breakpoints can drive
+							it. Left unset by the stylesheet on purpose — a default there would always beat the
+							attribute.
+						</div>
+					</div>
+					<div class="ref-row">
+						<div><code>--scrolling-content-fade</code></div>
+						<div><code>4rem</code></div>
+						<div>Width of the edge-fade ramp. Only applies when <code>fade</code> is present.</div>
+					</div>
+					<div class="ref-row">
+						<div><code>--scrolling-content-gap</code></div>
+						<div><code>1rem</code></div>
+						<div>Gap between items, and between children inside an item.</div>
+					</div>
+					<div class="ref-row">
+						<div><code>--scrolling-content-item-padding</code></div>
+						<div><code>0</code></div>
+						<div>Padding applied to each <code>&lt;scrolling-item&gt;</code>.</div>
+					</div>
+				</div>
+
+				<h3 class="ref-heading">Methods &amp; Properties</h3>
+				<div class="ref-table">
+					<div class="ref-row ref-head">
+						<div>Name</div>
+						<div>Type</div>
+						<div>Description</div>
+					</div>
+					<div class="ref-row">
+						<div><code>start()</code></div>
+						<div>method</div>
+						<div>Resume by clearing <code>paused</code>.</div>
+					</div>
+					<div class="ref-row">
+						<div><code>stop()</code></div>
+						<div>method</div>
+						<div>Pause by setting <code>paused</code>.</div>
+					</div>
+					<div class="ref-row">
+						<div><code>refresh()</code></div>
+						<div>method</div>
+						<div>
+							Re-measure, top up clones, re-normalize. Called automatically on resize and content
+							change — reach for it only after you've swapped the content yourself.
+						</div>
+					</div>
+					<div class="ref-row">
+						<div><code>speed</code></div>
+						<div>property</div>
+						<div>Resolved px/sec. Assigning writes the attribute.</div>
+					</div>
+					<div class="ref-row">
+						<div><code>direction</code></div>
+						<div>property</div>
+						<div><code>'left'</code> · <code>'right'</code></div>
+					</div>
+					<div class="ref-row">
+						<div><code>paused</code></div>
+						<div>property</div>
+						<div>Boolean mirror of the attribute.</div>
+					</div>
+				</div>
+
+				<h3 class="ref-heading">Events</h3>
+				<div class="ref-table">
+					<div class="ref-row ref-head">
+						<div>Name</div>
+						<div>Type</div>
+						<div>Description</div>
+					</div>
+					<div class="ref-row">
+						<div><code>scrolling-content:start</code></div>
+						<div>event</div>
+						<div>The rAF loop began.</div>
+					</div>
+					<div class="ref-row">
+						<div><code>scrolling-content:stop</code></div>
+						<div>event</div>
+						<div>The rAF loop halted — pause, hover, drag, or reduced motion.</div>
+					</div>
+					<div class="ref-row">
+						<div><code>scrolling-content:drag-start</code></div>
+						<div>event</div>
+						<div>A scrub gesture began.</div>
+					</div>
+					<div class="ref-row">
+						<div><code>scrolling-content:drag-end</code></div>
+						<div>event</div>
+						<div>A scrub gesture ended or was cancelled.</div>
+					</div>
+				</div>
+
+				<h3 class="ref-heading">Migrating from v1</h3>
+				<div class="ref-table">
+					<div class="ref-row ref-head">
+						<div>v1</div>
+						<div>v2</div>
+						<div>Notes</div>
+					</div>
+					<div class="ref-row">
+						<div><code>mobile-speed</code> <code>desktop-speed</code> <code>breakpoint</code></div>
+						<div><code>speed</code> + <code>--scrolling-content-speed</code></div>
+						<div>Removed. Using them logs a one-time warning naming the replacement.</div>
+					</div>
+					<div class="ref-row">
+						<div><code>&lt;scrolling-track gap="30"&gt;</code></div>
+						<div><code>--scrolling-content-gap</code></div>
+						<div>Attribute removed in favour of the custom property.</div>
+					</div>
+					<div class="ref-row">
+						<div><code>&lt;scrolling-item pad="10"&gt;</code></div>
+						<div><code>--scrolling-content-item-padding</code></div>
+						<div>Attribute removed in favour of the custom property.</div>
+					</div>
+					<div class="ref-row">
+						<div><code>stop()</code> then hover out</div>
+						<div><code>stop()</code> stays stopped</div>
+						<div>
+							<code>paused</code> is now real state; hovering out no longer overrides an explicit
+							stop.
+						</div>
+					</div>
+					<div class="ref-row">
+						<div>styles written inline by JS</div>
+						<div>injected cascade layer</div>
+						<div>
+							Layout now lives in a <code>@layer scrolling-content</code> stylesheet, so plain
+							author selectors override it — no <code>!important</code> needed.
+						</div>
+					</div>
+				</div>
+			</section>
+		</main>
+
+		<footer>
+			<p>
+				MIT ·
+				<a href="https://github.com/magic-spells/scrolling-content" target="_blank" rel="noopener"
+					>github.com/magic-spells/scrolling-content</a
+				>
+			</p>
+		</footer>
+
+		<script type="module" src="dist/scrolling-content.esm.js"></script>
+		<script type="module">
+			// ---- 02 Speed & direction ----
+			const tune = document.getElementById('tune-demo');
+			const speedInput = document.getElementById('tune-speed');
+			const speedOut = document.getElementById('tune-speed-out');
+
+			speedInput.addEventListener('input', () => {
+				tune.speed = Number(speedInput.value);
+				speedOut.textContent = `${speedInput.value} px/s`;
+			});
+
+			for (const button of document.querySelectorAll('[data-direction]')) {
+				button.addEventListener('click', () => {
+					const target = document.getElementById(button.dataset.target);
+					target.direction = button.dataset.direction;
+					for (const sibling of document.querySelectorAll(
+						`[data-target="${button.dataset.target}"]`
+					)) {
+						sibling.classList.toggle('is-active', sibling === button);
+					}
+				});
+			}
+
+			// ---- 03 Responsive speed ----
+			const responsive = document.getElementById('rs-demo');
+			const widthOut = document.getElementById('rs-width');
+			const speedReadout = document.getElementById('rs-speed');
+			const ruleOut = document.getElementById('rs-rule');
+
+			// Ask the CSS engine which rule is live rather than re-deriving the
+			// breakpoints in JS — a copy of the thresholds here would be free to drift
+			// from the stylesheet, and this is the one section whose whole point is
+			// that the stylesheet is in charge.
+			const narrow = window.matchMedia('(max-width: 600px)');
+			const medium = window.matchMedia('(max-width: 900px)');
+
+			function reportResponsive() {
+				widthOut.textContent = `${window.innerWidth}px`;
+				// `speed` reports what the component actually resolved from the cascade.
+				speedReadout.textContent = `${responsive.speed} px/s`;
+				ruleOut.textContent = narrow.matches
+					? 'max-width: 600px'
+					: medium.matches
+						? 'max-width: 900px'
+						: 'base rule';
+			}
+
+			// The component re-resolves on resize; read after it has, not before.
+			window.addEventListener('resize', () => requestAnimationFrame(reportResponsive), {
+				passive: true,
+			});
+			narrow.addEventListener('change', reportResponsive);
+			medium.addEventListener('change', reportResponsive);
+			// `speed` isn't resolved until the first measurement lands, which happens on
+			// the ResizeObserver's initial callback — after any rAF we could schedule
+			// here. The loop only starts once that's done, so `start` is the ready signal.
+			responsive.addEventListener('scrolling-content:start', reportResponsive);
+			reportResponsive();
+
+			// ---- 04 Interaction ----
+			const interactive = document.getElementById('ix-demo');
+			const hoverButton = document.getElementById('ix-hover');
+			const dragButton = document.getElementById('ix-drag');
+			const playButton = document.getElementById('ix-play');
+			const eventOut = document.getElementById('ix-event');
+			const pausedOut = document.getElementById('ix-paused');
+
+			hoverButton.addEventListener('click', () => {
+				const enabled = interactive.getAttribute('pause-on-hover') === 'false';
+				if (enabled) interactive.removeAttribute('pause-on-hover');
+				else interactive.setAttribute('pause-on-hover', 'false');
+				hoverButton.classList.toggle('is-active', enabled);
+			});
+
+			dragButton.addEventListener('click', () => {
+				const enabled = interactive.getAttribute('drag') === 'false';
+				if (enabled) interactive.removeAttribute('drag');
+				else interactive.setAttribute('drag', 'false');
+				dragButton.classList.toggle('is-active', enabled);
+			});
+
+			playButton.addEventListener('click', () => {
+				if (interactive.paused) interactive.start();
+				else interactive.stop();
+				playButton.textContent = interactive.paused ? 'Resume' : 'Pause';
+				playButton.classList.toggle('is-active', interactive.paused);
+				pausedOut.textContent = String(interactive.paused);
+			});
+
+			for (const name of ['start', 'stop', 'drag-start', 'drag-end']) {
+				interactive.addEventListener(`scrolling-content:${name}`, () => {
+					eventOut.textContent = `scrolling-content:${name}`;
+					pausedOut.textContent = String(interactive.paused);
+				});
+			}
+
+			// ---- 06 Reduced motion ----
+			const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+			const motionState = document.getElementById('rm-state');
+			const motionEffect = document.getElementById('rm-effect');
+
+			function reportMotion() {
+				motionState.textContent = motionQuery.matches ? 'reduce' : 'no-preference';
+				motionEffect.textContent = motionQuery.matches
+					? 'held still — drag still works'
+					: 'scrolling at 50 px/s';
+			}
+
+			motionQuery.addEventListener('change', reportMotion);
+			reportMotion();
+		</script>
+	</body>
 </html>

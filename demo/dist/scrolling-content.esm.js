@@ -350,3 +350,5 @@ if (!customElements.get("scrolling-item")) customElements.define("scrolling-item
 if (!customElements.get("scrolling-content")) customElements.define("scrolling-content", ScrollingContent);
 //#endregion
 export { ScrollingContent, ScrollingItem, ScrollingTrack };
+
+//# sourceMappingURL=scrolling-content.esm.js.map
