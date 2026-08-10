@@ -20,7 +20,7 @@
 	"sideEffects": true,
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/magic-spells/scrolling-content"
+		"url": "git+https://github.com/magic-spells/scrolling-content.git"
 	},
 	"homepage": "https://github.com/magic-spells/scrolling-content#readme",
 	"bugs": {
