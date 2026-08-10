@@ -1,3 +1,7 @@
 **/*.min.js
+**/*.md
 assets/
+dist/
+demo/
 node_modules/
+package-lock.json
