@@ -1,3 +1,4 @@
+@layer scrolling-content {
 /* Hide the host until customElements.define runs, so the un-wrapped, un-cloned
    markup never flashes as a plain stack of divs. Markup that already carries a
    <scrolling-track> is exempt: the rules below lay it out correctly before
@@ -81,4 +82,6 @@ scrolling-item {
 	gap: var(--scrolling-content-gap, 1rem);
 	padding: var(--scrolling-content-item-padding, 0);
 	flex: 0 0 auto;
+}
+
 }

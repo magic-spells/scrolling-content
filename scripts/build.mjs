@@ -1,5 +1,5 @@
 import { build, createServer } from 'vite';
-import { rm, mkdir, copyFile } from 'node:fs/promises';
+import { rm, mkdir, copyFile, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import liveReload from '@magic-spells/vite-plugin-live-reload';
 
@@ -79,6 +79,17 @@ function umdDevConfig() {
 	});
 }
 
+// The `./css` export. The JS bundles still carry the same rules inline (they
+// inject them when nothing else has), so this file exists for bundler users who
+// want the stylesheet in their own build — a Tailwind app importing it into
+// `layer(components)`, say. It is wrapped in the SAME `@layer
+// scrolling-content` the runtime injection uses, so the two delivery paths
+// cascade identically; keep the wrapper in sync with injectStyles() in src/.
+async function writeStylesheet() {
+	const css = await readFile('src/scrolling-content.css', 'utf8');
+	await writeFile('dist/scrolling-content.css', `@layer scrolling-content {\n${css}\n}\n`);
+}
+
 async function main() {
 	if (!isDev) {
 		await rm(outDir, { recursive: true, force: true });
@@ -113,6 +124,7 @@ async function main() {
 		}
 		// Hand-maintained declarations ship alongside the bundles.
 		await copyFile('src/scrolling-content.d.ts', 'dist/scrolling-content.d.ts');
+		await writeStylesheet();
 	}
 }
 
