@@ -9,6 +9,8 @@ No dependencies. ~2.5 kB gzipped.
 ## Features
 
 - Measures your content and clones it until the track covers the container — six items or sixty, same markup
+- Adopts markup you authored yourself, so it never fights a framework that owns the DOM
+- Edit the content and every clone follows on the next frame
 - Speed in px/sec, overridable per breakpoint from CSS
 - Hover to pause, drag to scrub, both opt-out-able
 - Optional edge fade so content dissolves instead of clipping
@@ -47,6 +49,44 @@ Or via CDN:
 ```
 
 Loose children are wrapped in a `<scrolling-item>` automatically, so `<scrolling-track>` is the only element you need to write. The item is then cloned as many times as it takes to fill the track.
+
+## Authoring the structure yourself
+
+Writing the track **and** the item is the supported, framework-friendly form:
+
+```html
+<scrolling-content speed="60" fade>
+  <scrolling-track>
+    <scrolling-item>
+      <span>🚀 Web Components</span>
+      <span>⚡ Lightning Fast</span>
+      <span>🎨 Fully Customizable</span>
+    </scrolling-item>
+  </scrolling-track>
+</scrolling-content>
+```
+
+With both present the component **moves nothing**. It measures the item you wrote and appends clones after it — your element stays exactly where your template put it, with the same identity. That is what makes the component safe inside Puzzle, React, Vue or any renderer that owns the DOM it produced and patches it in place: a component that relocated children would be overwritten on the next patch, or would fight it.
+
+It also survives to the first paint. Pre-authored markup is exempt from the `:not(:defined)` hide rule, because it is already laid out correctly — a prerendered page shows one static, un-cloned row and gains the clones the moment the script upgrades it, instead of showing nothing. The exemption is a separate `:has()` rule, so a browser that doesn't support `:has()` simply keeps the old hide-until-defined behavior rather than losing the rule entirely.
+
+### Editing the content
+
+Change the source item and the clones follow:
+
+```javascript
+marquee.querySelector('scrolling-item').textContent = 'New promo copy';
+```
+
+A `MutationObserver` watches the source item's subtree — children added or removed, text rewritten in place — and rebuilds on the next animation frame: every `[data-clone]` is thrown away, the item is re-measured, and the track is refilled. A burst of mutations produces one rebuild, not one per mutation. It's on the source item and not the track, so appending clones can't retrigger it.
+
+Two things it can't see: attribute changes (a class toggle is a restyle, not new content — and the `ResizeObserver` picks it up if the width moves), and replacing the `<scrolling-item>` element itself. For the second, call `rebuild()`.
+
+Clones are marked `data-clone`, so your own code can tell filler from the original:
+
+```javascript
+marquee.querySelectorAll('scrolling-item:not([data-clone])'); // just yours
+```
 
 ## Configuration
 
@@ -112,6 +152,14 @@ Precedence is `--scrolling-content-speed` → `speed` attribute → `60`. The st
 
 Structural styles are injected into a `@layer scrolling-content` cascade layer. Unlayered author rules always beat layered ones, so you can override anything with a plain selector — no `!important`:
 
+If you'd rather the stylesheet went through your own build — into a Tailwind `@layer components`, say, or your bundler's CSS graph — import it directly:
+
+```css
+@import '@magic-spells/scrolling-content/css' layer(components);
+```
+
+The file carries the same `@layer scrolling-content` wrapper, so both routes cascade identically. The component checks for it as each instance connects — reading a `--scrolling-content-styles` sentinel the stylesheet sets on the host — and skips its own injection when it's there, so there's no duplicate `<style>` and no configuration either way.
+
 ```css
 scrolling-track {
   align-items: flex-end;
@@ -138,14 +186,16 @@ marquee.start(); // clears `paused`
 marquee.speed = 120; // px/sec, live — no restart
 marquee.direction = 'right';
 
-marquee.refresh(); // re-measure after you've swapped the content yourself
+marquee.refresh(); // re-measure and top up clones
+marquee.rebuild(); // throw the clones away and rebuild from the source item
 ```
 
 | Member        | Type     | Description                                                                                                        |
 | ------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
 | `start()`     | method   | Resume by clearing `paused`.                                                                                       |
 | `stop()`      | method   | Pause by setting `paused`.                                                                                         |
-| `refresh()`   | method   | Re-measure, top up clones, re-normalize. Runs automatically on resize and content change.                          |
+| `refresh()`   | method   | Re-measure, top up clones, re-normalize. Runs automatically on resize. Doesn't refresh existing clones.            |
+| `rebuild()`   | method   | Discard every clone and refill from the source item. Runs automatically when the source item's content changes.    |
 | `speed`       | property | Resolved px/sec. Assigning writes the attribute.                                                                   |
 | `direction`   | property | `'left'` or `'right'`.                                                                                             |
 | `paused`      | property | Boolean mirror of the attribute.                                                                                   |
@@ -167,11 +217,13 @@ Content is wrapped in a `<scrolling-item>` and cloned until the track covers twi
 
 Measurement is driven by a `ResizeObserver` on both the host and the first item, so content that sizes late — images, webfonts, an ancestor that starts hidden — is picked up when it actually resolves rather than at a guessed timeout. The per-frame delta is clamped at 64ms, so returning to a backgrounded tab resumes instead of teleporting.
 
+Pause-on-hover listens for `pointerenter`/`pointerleave` and acts only when `pointerType` is `mouse`. Touch has no hover: a tap fires a compatibility `mouseenter` with no matching `mouseleave`, which would pause the marquee forever on the first tap.
+
 Dragging uses pointer capture, so a gesture survives leaving the element without any window-level listeners. On touch, `touch-action: pan-y` lets the browser arbitrate: vertical swipes scroll the page, horizontal ones scrub the track.
 
 ## Accessibility
 
-- Cloned content is marked `aria-hidden` and `inert`, and any `id` inside a clone is removed — the duplication is invisible to assistive tech and to `getElementById`.
+- Cloned content is marked `data-clone`, `aria-hidden` and `inert`, and any `id` inside a clone is removed — the duplication is invisible to assistive tech and to `getElementById`.
 - Under `prefers-reduced-motion: reduce` the loop does not run. Dragging still works, so the marquee degrades into a scrubbable strip rather than disappearing.
 
 ## Migrating from v1
