@@ -6,9 +6,21 @@ import styles from './scrolling-content.css?inline';
 // to every unlayered author rule — so overriding `align-items` or `gap` needs a
 // plain selector, not `!important`. That was the whole problem with the inline
 // styles this replaced.
-function injectStyles() {
+//
+// The same rules are also published as `@magic-spells/scrolling-content/css`
+// for bundler users who want the stylesheet in their own cascade. When that
+// file is already on the page the injection is skipped, detected by the
+// `--scrolling-content-styles` sentinel the stylesheet sets on the host: one
+// computed-style read, and it is true however the CSS arrived (a `<link>`, a
+// bundler-inlined `<style>`, or a previous injection).
+//
+// Cheap enough to call on every connect — which is what happens; both guards
+// short-circuit before touching the DOM.
+function injectStyles(host) {
 	if (typeof document === 'undefined') return;
 	if (document.querySelector('style[data-scrolling-content]')) return;
+	if (host && getComputedStyle(host).getPropertyValue('--scrolling-content-styles').trim() === '1')
+		return;
 
 	const style = document.createElement('style');
 	style.setAttribute('data-scrolling-content', '');
@@ -56,6 +68,20 @@ class ScrollingItem extends HTMLElement {}
 /**
  * Infinite scrolling marquee.
  *
+ * Authoring the structure yourself is the supported, framework-friendly form:
+ *
+ *   <scrolling-content>
+ *     <scrolling-track>
+ *       <scrolling-item>…one pass of content…</scrolling-item>
+ *     </scrolling-track>
+ *   </scrolling-content>
+ *
+ * With the track and the item already present the component MOVES NOTHING — it
+ * measures the item you wrote and appends clones after it. That matters to any
+ * framework that owns the DOM it rendered (Puzzle, React, Vue): a component
+ * that relocated children would fight the next patch. Loose children are still
+ * wrapped automatically for plain-HTML authors.
+ *
  * Attributes:
  *   speed           — pixels per second (default 60). Overridden by the
  *                     `--scrolling-content-speed` custom property, which lets a
@@ -74,6 +100,8 @@ class ScrollingContent extends HTMLElement {
 	#items = [];
 	#abortController = null;
 	#resizeObserver = null;
+	#mutationObserver = null;
+	#rebuildFrame = null;
 	#motionQuery = null;
 	#rafId = null;
 	#initialized = false;
@@ -96,6 +124,15 @@ class ScrollingContent extends HTMLElement {
 	connectedCallback() {
 		const _ = this;
 
+		// Styles are injected from connectedCallback rather than at import, so the
+		// host exists to be probed for the sentinel that says the stylesheet is
+		// already here. This runs on EVERY connect, not just the first: both of
+		// injectStyles()'s guards make a repeat call a no-op, and every new
+		// instance has to be checked anyway (the stylesheet can arrive at any
+		// point, and a `<style>` a previous instance injected is found by the
+		// first guard).
+		injectStyles(_);
+
 		if (!_.#initialized) {
 			_.#initialized = true;
 			_.#warnLegacyAttributes();
@@ -105,6 +142,7 @@ class ScrollingContent extends HTMLElement {
 		_.#applyFade();
 
 		_.#attachListeners();
+		_.#observeContent();
 
 		// The ResizeObserver delivers an initial observation once layout has run,
 		// which is where measurement belongs. It also fires again when late content
@@ -122,6 +160,10 @@ class ScrollingContent extends HTMLElement {
 		_.#abortController = null;
 		_.#resizeObserver?.disconnect();
 		_.#resizeObserver = null;
+		_.#mutationObserver?.disconnect();
+		_.#mutationObserver = null;
+		if (_.#rebuildFrame !== null) cancelAnimationFrame(_.#rebuildFrame);
+		_.#rebuildFrame = null;
 		_.#hoverPaused = false;
 		_.#endDrag();
 	}
@@ -164,6 +206,39 @@ class ScrollingContent extends HTMLElement {
 		_.#normalizeOffset();
 		_.#paint();
 		_.#syncPlayback();
+	}
+
+	/**
+	 * Throw away every clone, re-measure the source item, and refill. This is
+	 * what `refresh()` is not: `refresh()` only tops clones up, so it can't see a
+	 * content EDIT — the existing clones still hold the old markup. Called
+	 * automatically when the source item's subtree changes; public so a host that
+	 * mutates content in a way the observer can't see (replacing the item element
+	 * itself) can force it.
+	 */
+	rebuild() {
+		const _ = this;
+		if (!_.#track) return;
+
+		const previousSource = _.#items[0];
+
+		// Removing clones is a track mutation, and the observer watches the source
+		// item — not the track — so this can't retrigger itself.
+		for (const clone of _.#track.querySelectorAll(':scope > [data-clone]')) clone.remove();
+		_.#items = Array.from(_.#track.children);
+
+		// The source can be a DIFFERENT element than the one we were watching —
+		// replacing the item wholesale is the case this method exists for. Both
+		// observers are keyed to that element, so they have to move with it;
+		// otherwise the first manual rebuild leaves the component watching a
+		// detached node and nothing auto-updates again.
+		if (_.#items[0] !== previousSource) {
+			_.#observeContent();
+			if (previousSource) _.#resizeObserver?.unobserve(previousSource);
+			if (_.#items[0]) _.#resizeObserver?.observe(_.#items[0]);
+		}
+
+		_.refresh();
 	}
 
 	get speed() {
@@ -240,8 +315,12 @@ class ScrollingContent extends HTMLElement {
 		_.#abortController = new AbortController();
 		const { signal } = _.#abortController;
 
-		_.addEventListener('mouseenter', () => _.#onHover(true), { signal });
-		_.addEventListener('mouseleave', () => _.#onHover(false), { signal });
+		// Pointer events rather than mouseenter/mouseleave so the pointer TYPE is
+		// available: a touch tap fires mouseenter with no matching mouseleave, which
+		// used to pause the marquee permanently on the first tap. Only a real mouse
+		// hovers.
+		_.addEventListener('pointerenter', (e) => _.#onHover(e, true), { signal });
+		_.addEventListener('pointerleave', (e) => _.#onHover(e, false), { signal });
 
 		// Pointer capture routes move/up back to the track even when the pointer
 		// leaves it, so there are no window-level listeners to leak.
@@ -257,6 +336,40 @@ class ScrollingContent extends HTMLElement {
 
 		_.#motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 		_.#motionQuery.addEventListener('change', () => _.#syncPlayback(), { signal });
+	}
+
+	/**
+	 * Watch the SOURCE item — never the track — for content changes.
+	 *
+	 * The track is where clones land, so observing it would make every refill
+	 * schedule another one. Observing `#items[0]` instead means the only things
+	 * that reach us are real content edits: a child added or removed anywhere in
+	 * the item's subtree (`childList` + `subtree`) or text rewritten in place
+	 * (`characterData`). Attribute changes are deliberately not watched — a class
+	 * toggle on existing markup is a restyle, not new content, and the
+	 * ResizeObserver already covers it if it changes the width.
+	 */
+	#observeContent() {
+		const _ = this;
+		_.#mutationObserver?.disconnect();
+		if (!_.#items[0]) return;
+
+		_.#mutationObserver = new MutationObserver(() => _.#scheduleRebuild());
+		_.#mutationObserver.observe(_.#items[0], {
+			childList: true,
+			characterData: true,
+			subtree: true,
+		});
+	}
+
+	/** Coalesce a burst of mutations into one rebuild on the next frame. */
+	#scheduleRebuild() {
+		const _ = this;
+		if (_.#rebuildFrame !== null) return;
+		_.#rebuildFrame = requestAnimationFrame(() => {
+			_.#rebuildFrame = null;
+			_.rebuild();
+		});
 	}
 
 	/* ----------------------------------------------------------- measurement */
@@ -310,9 +423,13 @@ class ScrollingContent extends HTMLElement {
 	 * Clones are visual filler. They're hidden from assistive tech and taken out
 	 * of the tab order, and their ids are stripped so the page doesn't end up
 	 * with N copies of every id in the content.
+	 *
+	 * `data-clone` marks them as ours: it is how `rebuild()` tells filler from
+	 * the author's own item, and how a framework or a test can ignore them.
 	 */
 	#cloneItem(source) {
 		const clone = source.cloneNode(true);
+		clone.setAttribute('data-clone', '');
 		clone.setAttribute('aria-hidden', 'true');
 		clone.inert = true;
 		clone.removeAttribute('id');
@@ -393,7 +510,8 @@ class ScrollingContent extends HTMLElement {
 
 	/* ----------------------------------------------------------- interaction */
 
-	#onHover(entering) {
+	#onHover(event, entering) {
+		if (event.pointerType !== 'mouse') return;
 		if (this.getAttribute('pause-on-hover') === 'false') return;
 		this.#hoverPaused = entering;
 		this.#syncPlayback();
@@ -460,8 +578,6 @@ class ScrollingContent extends HTMLElement {
 		);
 	}
 }
-
-injectStyles();
 
 if (!customElements.get('scrolling-track')) {
 	customElements.define('scrolling-track', ScrollingTrack);

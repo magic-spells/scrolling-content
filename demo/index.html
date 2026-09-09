@@ -459,6 +459,23 @@
 				transform: translateY(1px);
 			}
 
+			.text-input {
+				font-family: var(--font-body);
+				font-size: 0.8rem;
+				color: var(--cream);
+				background: transparent;
+				border: 1px solid var(--border-accent);
+				border-radius: 100px;
+				padding: 0.7em 1.4em;
+				min-width: 16rem;
+				transition: border-color 0.3s ease;
+			}
+
+			.text-input:focus {
+				outline: none;
+				border-color: var(--accent);
+			}
+
 			.control-label {
 				font-size: 0.65rem;
 				letter-spacing: 0.18em;
@@ -1148,6 +1165,68 @@ marquee.<span class="hl-prop">addEventListener</span>(<span class="hl-val">'scro
 				</div>
 			</section>
 
+			<!-- ---- 06b Adopt & live content ---- -->
+			<section class="demo-section">
+				<h2>Write the markup. <em>Then change it.</em></h2>
+				<p class="demo-desc">
+					Author the <code>&lt;scrolling-item&gt;</code> yourself and the component moves nothing — it
+					measures your element, in place, and appends clones after it. That is what makes it safe
+					inside a framework that owns the DOM it rendered. Edit that item afterwards and a
+					<code>MutationObserver</code> rebuilds every clone on the next frame, so the copies never
+					go stale. Type below, or append a chip.
+				</p>
+
+				<div class="demo-stage">
+					<scrolling-content id="adopt-demo" speed="40" fade>
+						<scrolling-track>
+							<scrolling-item>
+								<span class="wordmark" id="adopt-text">Ships as you wrote it</span>
+								<span class="sep-dot"></span>
+							</scrolling-item>
+						</scrolling-track>
+					</scrolling-content>
+				</div>
+
+				<div class="controls">
+					<input
+						type="text"
+						id="adopt-input"
+						class="text-input"
+						value="Ships as you wrote it"
+						aria-label="Marquee text"
+					/>
+					<button class="btn" id="adopt-append">Append a chip</button>
+					<button class="btn" id="adopt-reset">Reset</button>
+				</div>
+
+				<div class="readout">
+					<div class="readout-cell">
+						<span class="readout-key">Your items</span>
+						<span class="readout-val" id="adopt-mine">1</span>
+					</div>
+					<div class="readout-cell">
+						<span class="readout-key">[data-clone]</span>
+						<span class="readout-val" id="adopt-clones">—</span>
+					</div>
+					<div class="readout-cell">
+						<span class="readout-key">Clones in sync</span>
+						<span class="readout-val" id="adopt-sync">—</span>
+					</div>
+				</div>
+
+				<div class="code-block">&lt;<span class="hl-tag">scrolling-content</span> <span class="hl-attr">speed</span>=<span class="hl-val">"40"</span> <span class="hl-attr">fade</span>&gt;
+  &lt;<span class="hl-tag">scrolling-track</span>&gt;
+    &lt;<span class="hl-tag">scrolling-item</span>&gt;<span class="hl-cm">…one pass of content…</span>&lt;/<span class="hl-tag">scrolling-item</span>&gt;
+  &lt;/<span class="hl-tag">scrolling-track</span>&gt;
+&lt;/<span class="hl-tag">scrolling-content</span>&gt;
+
+<span class="hl-cm">// edit it however you like — the clones follow on the next frame</span>
+marquee.querySelector(<span class="hl-val">'scrolling-item'</span>).textContent = <span class="hl-val">'New promo copy'</span>;
+
+<span class="hl-cm">// only your own item; clones carry data-clone, aria-hidden and inert</span>
+marquee.querySelectorAll(<span class="hl-val">'scrolling-item:not([data-clone])'</span>);</div>
+			</section>
+
 			<!-- ---- 07 Reference ---- -->
 			<section class="demo-section">
 				<h2>The whole API, <em>on one screen</em>.</h2>
@@ -1257,8 +1336,17 @@ marquee.<span class="hl-prop">addEventListener</span>(<span class="hl-val">'scro
 						<div><code>refresh()</code></div>
 						<div>method</div>
 						<div>
-							Re-measure, top up clones, re-normalize. Called automatically on resize and content
-							change — reach for it only after you've swapped the content yourself.
+							Re-measure, top up clones, re-normalize. Called automatically on resize. Tops clones
+							up only — it never refreshes the ones already there.
+						</div>
+					</div>
+					<div class="ref-row">
+						<div><code>rebuild()</code></div>
+						<div>method</div>
+						<div>
+							Discard every <code>[data-clone]</code> and refill from the source item. Called
+							automatically when that item's content changes — reach for it only when you've
+							replaced the <code>&lt;scrolling-item&gt;</code> element itself.
 						</div>
 					</div>
 					<div class="ref-row">
@@ -1469,6 +1557,61 @@ marquee.<span class="hl-prop">addEventListener</span>(<span class="hl-val">'scro
 
 			motionQuery.addEventListener('change', reportMotion);
 			reportMotion();
+
+			// ---- 06b Adopt & live content ----
+			const adopt = document.getElementById('adopt-demo');
+			const adoptInput = document.getElementById('adopt-input');
+			const adoptAppend = document.getElementById('adopt-append');
+			const adoptReset = document.getElementById('adopt-reset');
+			const adoptMine = document.getElementById('adopt-mine');
+			const adoptClones = document.getElementById('adopt-clones');
+			const adoptSync = document.getElementById('adopt-sync');
+			const source = adopt.querySelector('scrolling-item:not([data-clone])');
+			const original = source.innerHTML;
+			let chipCount = 0;
+
+			// Nothing here calls refresh() or rebuild(): the point of the section is that
+			// mutating the source item is enough. Report a frame later, once the
+			// component's own rAF-coalesced rebuild has run.
+			function reportAdopt() {
+				requestAnimationFrame(() => {
+					const clones = adopt.querySelectorAll('scrolling-item[data-clone]');
+					adoptMine.textContent = String(
+						adopt.querySelectorAll('scrolling-item:not([data-clone])').length
+					);
+					adoptClones.textContent = String(clones.length);
+					adoptSync.textContent =
+						clones.length && [...clones].every((c) => c.textContent === source.textContent)
+							? 'yes — all match'
+							: clones.length
+								? 'stale'
+								: 'no clones yet';
+				});
+			}
+
+			adoptInput.addEventListener('input', () => {
+				// Clones have their ids stripped, so this only ever finds the source.
+				document.getElementById('adopt-text').textContent = adoptInput.value || ' ';
+				reportAdopt();
+			});
+
+			adoptAppend.addEventListener('click', () => {
+				const chip = document.createElement('span');
+				chip.className = 'wordmark';
+				chip.textContent = `Chip ${++chipCount}`;
+				source.append(chip, Object.assign(document.createElement('span'), { className: 'sep-dot' }));
+				reportAdopt();
+			});
+
+			adoptReset.addEventListener('click', () => {
+				chipCount = 0;
+				source.innerHTML = original;
+				adoptInput.value = 'Ships as you wrote it';
+				reportAdopt();
+			});
+
+			adopt.addEventListener('scrolling-content:start', reportAdopt);
+			reportAdopt();
 		</script>
 	</body>
 </html>

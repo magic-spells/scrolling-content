@@ -3,12 +3,13 @@
 })(this, function(exports) {
 	Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 	//#region src/scrolling-content.css?inline
-	var scrolling_content_default = "scrolling-content:not(:defined) {\n  visibility: hidden;\n}\n\nscrolling-content {\n  display: block;\n  overflow: hidden;\n}\n\nscrolling-content[fade] {\n  --_fade: var(--scrolling-content-fade, 4rem);\n  -webkit-mask-image: linear-gradient(90deg,\n		transparent,\n		#000 var(--_fade),\n		#000 calc(100% - var(--_fade)),\n		transparent);\n  -webkit-mask-image: linear-gradient(90deg,\n		transparent,\n		#000 var(--_fade),\n		#000 calc(100% - var(--_fade)),\n		transparent);\n  mask-image: linear-gradient(90deg,\n		transparent,\n		#000 var(--_fade),\n		#000 calc(100% - var(--_fade)),\n		transparent);\n}\n\nscrolling-track {\n  align-items: center;\n  gap: var(--scrolling-content-gap, 1rem);\n  will-change: transform;\n  touch-action: pan-y;\n  cursor: grab;\n  flex-wrap: nowrap;\n  width: max-content;\n  display: flex;\n}\n\nscrolling-content[drag=\"false\"] scrolling-track {\n  cursor: auto;\n  touch-action: auto;\n}\n\nscrolling-content[dragging] scrolling-track {\n  cursor: grabbing;\n  -webkit-user-select: none;\n  user-select: none;\n}\n\nscrolling-item {\n  align-items: center;\n  gap: var(--scrolling-content-gap, 1rem);\n  padding: var(--scrolling-content-item-padding, 0);\n  flex: none;\n  display: flex;\n}\n";
+	var scrolling_content_default = "scrolling-content:not(:defined) {\n  visibility: hidden;\n}\n\nscrolling-content:not(:defined):has(scrolling-track) {\n  visibility: visible;\n}\n\nscrolling-content {\n  --scrolling-content-styles: 1;\n  display: block;\n  overflow: hidden;\n}\n\nscrolling-content[fade] {\n  --_fade: var(--scrolling-content-fade, 4rem);\n  -webkit-mask-image: linear-gradient(90deg,\n		transparent,\n		#000 var(--_fade),\n		#000 calc(100% - var(--_fade)),\n		transparent);\n  -webkit-mask-image: linear-gradient(90deg,\n		transparent,\n		#000 var(--_fade),\n		#000 calc(100% - var(--_fade)),\n		transparent);\n  mask-image: linear-gradient(90deg,\n		transparent,\n		#000 var(--_fade),\n		#000 calc(100% - var(--_fade)),\n		transparent);\n}\n\nscrolling-track {\n  align-items: center;\n  gap: var(--scrolling-content-gap, 1rem);\n  will-change: transform;\n  touch-action: pan-y;\n  cursor: grab;\n  flex-wrap: nowrap;\n  width: max-content;\n  display: flex;\n}\n\nscrolling-content[drag=\"false\"] scrolling-track {\n  cursor: auto;\n  touch-action: auto;\n}\n\nscrolling-content[dragging] scrolling-track {\n  cursor: grabbing;\n  -webkit-user-select: none;\n  user-select: none;\n}\n\nscrolling-item {\n  align-items: center;\n  gap: var(--scrolling-content-gap, 1rem);\n  padding: var(--scrolling-content-item-padding, 0);\n  flex: none;\n  display: flex;\n}\n";
 	//#endregion
 	//#region src/scrolling-content.js
-	function injectStyles() {
+	function injectStyles(host) {
 		if (typeof document === "undefined") return;
 		if (document.querySelector("style[data-scrolling-content]")) return;
+		if (host && getComputedStyle(host).getPropertyValue("--scrolling-content-styles").trim() === "1") return;
 		const style = document.createElement("style");
 		style.setAttribute("data-scrolling-content", "");
 		style.textContent = `@layer scrolling-content {\n${scrolling_content_default}\n}`;
@@ -41,6 +42,20 @@
 	/**
 	* Infinite scrolling marquee.
 	*
+	* Authoring the structure yourself is the supported, framework-friendly form:
+	*
+	*   <scrolling-content>
+	*     <scrolling-track>
+	*       <scrolling-item>…one pass of content…</scrolling-item>
+	*     </scrolling-track>
+	*   </scrolling-content>
+	*
+	* With the track and the item already present the component MOVES NOTHING — it
+	* measures the item you wrote and appends clones after it. That matters to any
+	* framework that owns the DOM it rendered (Puzzle, React, Vue): a component
+	* that relocated children would fight the next patch. Loose children are still
+	* wrapped automatically for plain-HTML authors.
+	*
 	* Attributes:
 	*   speed           — pixels per second (default 60). Overridden by the
 	*                     `--scrolling-content-speed` custom property, which lets a
@@ -59,6 +74,8 @@
 		#items = [];
 		#abortController = null;
 		#resizeObserver = null;
+		#mutationObserver = null;
+		#rebuildFrame = null;
 		#motionQuery = null;
 		#rafId = null;
 		#initialized = false;
@@ -85,6 +102,7 @@
 		}
 		connectedCallback() {
 			const _ = this;
+			injectStyles(_);
 			if (!_.#initialized) {
 				_.#initialized = true;
 				_.#warnLegacyAttributes();
@@ -92,6 +110,7 @@
 			}
 			_.#applyFade();
 			_.#attachListeners();
+			_.#observeContent();
 			_.#resizeObserver = new ResizeObserver(() => _.refresh());
 			_.#resizeObserver.observe(_);
 			if (_.#items[0]) _.#resizeObserver.observe(_.#items[0]);
@@ -103,6 +122,10 @@
 			_.#abortController = null;
 			_.#resizeObserver?.disconnect();
 			_.#resizeObserver = null;
+			_.#mutationObserver?.disconnect();
+			_.#mutationObserver = null;
+			if (_.#rebuildFrame !== null) cancelAnimationFrame(_.#rebuildFrame);
+			_.#rebuildFrame = null;
 			_.#hoverPaused = false;
 			_.#endDrag();
 		}
@@ -134,6 +157,27 @@
 			_.#normalizeOffset();
 			_.#paint();
 			_.#syncPlayback();
+		}
+		/**
+		* Throw away every clone, re-measure the source item, and refill. This is
+		* what `refresh()` is not: `refresh()` only tops clones up, so it can't see a
+		* content EDIT — the existing clones still hold the old markup. Called
+		* automatically when the source item's subtree changes; public so a host that
+		* mutates content in a way the observer can't see (replacing the item element
+		* itself) can force it.
+		*/
+		rebuild() {
+			const _ = this;
+			if (!_.#track) return;
+			const previousSource = _.#items[0];
+			for (const clone of _.#track.querySelectorAll(":scope > [data-clone]")) clone.remove();
+			_.#items = Array.from(_.#track.children);
+			if (_.#items[0] !== previousSource) {
+				_.#observeContent();
+				if (previousSource) _.#resizeObserver?.unobserve(previousSource);
+				if (_.#items[0]) _.#resizeObserver?.observe(_.#items[0]);
+			}
+			_.refresh();
 		}
 		get speed() {
 			return this.#speed;
@@ -190,8 +234,8 @@
 			_.#abortController?.abort();
 			_.#abortController = new AbortController();
 			const { signal } = _.#abortController;
-			_.addEventListener("mouseenter", () => _.#onHover(true), { signal });
-			_.addEventListener("mouseleave", () => _.#onHover(false), { signal });
+			_.addEventListener("pointerenter", (e) => _.#onHover(e, true), { signal });
+			_.addEventListener("pointerleave", (e) => _.#onHover(e, false), { signal });
 			_.#track.addEventListener("pointerdown", (e) => _.#onPointerDown(e), { signal });
 			_.#track.addEventListener("pointermove", (e) => _.#onPointerMove(e), { signal });
 			_.#track.addEventListener("pointerup", (e) => _.#onPointerUp(e), { signal });
@@ -202,6 +246,37 @@
 			});
 			_.#motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 			_.#motionQuery.addEventListener("change", () => _.#syncPlayback(), { signal });
+		}
+		/**
+		* Watch the SOURCE item — never the track — for content changes.
+		*
+		* The track is where clones land, so observing it would make every refill
+		* schedule another one. Observing `#items[0]` instead means the only things
+		* that reach us are real content edits: a child added or removed anywhere in
+		* the item's subtree (`childList` + `subtree`) or text rewritten in place
+		* (`characterData`). Attribute changes are deliberately not watched — a class
+		* toggle on existing markup is a restyle, not new content, and the
+		* ResizeObserver already covers it if it changes the width.
+		*/
+		#observeContent() {
+			const _ = this;
+			_.#mutationObserver?.disconnect();
+			if (!_.#items[0]) return;
+			_.#mutationObserver = new MutationObserver(() => _.#scheduleRebuild());
+			_.#mutationObserver.observe(_.#items[0], {
+				childList: true,
+				characterData: true,
+				subtree: true
+			});
+		}
+		/** Coalesce a burst of mutations into one rebuild on the next frame. */
+		#scheduleRebuild() {
+			const _ = this;
+			if (_.#rebuildFrame !== null) return;
+			_.#rebuildFrame = requestAnimationFrame(() => {
+				_.#rebuildFrame = null;
+				_.rebuild();
+			});
 		}
 		/**
 		* Resolve speed in px/sec. The custom property wins when set, so a breakpoint
@@ -238,9 +313,13 @@
 		* Clones are visual filler. They're hidden from assistive tech and taken out
 		* of the tab order, and their ids are stripped so the page doesn't end up
 		* with N copies of every id in the content.
+		*
+		* `data-clone` marks them as ours: it is how `rebuild()` tells filler from
+		* the author's own item, and how a framework or a test can ignore them.
 		*/
 		#cloneItem(source) {
 			const clone = source.cloneNode(true);
+			clone.setAttribute("data-clone", "");
 			clone.setAttribute("aria-hidden", "true");
 			clone.inert = true;
 			clone.removeAttribute("id");
@@ -298,7 +377,8 @@
 			_.#paint();
 			_.#rafId = requestAnimationFrame((next) => _.#tick(next));
 		}
-		#onHover(entering) {
+		#onHover(event, entering) {
+			if (event.pointerType !== "mouse") return;
 			if (this.getAttribute("pause-on-hover") === "false") return;
 			this.#hoverPaused = entering;
 			this.#syncPlayback();
@@ -348,7 +428,6 @@
 			}));
 		}
 	};
-	injectStyles();
 	if (!customElements.get("scrolling-track")) customElements.define("scrolling-track", ScrollingTrack);
 	if (!customElements.get("scrolling-item")) customElements.define("scrolling-item", ScrollingItem);
 	if (!customElements.get("scrolling-content")) customElements.define("scrolling-content", ScrollingContent);
