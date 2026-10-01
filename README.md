@@ -225,7 +225,7 @@ A press becomes a drag only after the pointer moves about 5px. Below that it is 
 ## Accessibility
 
 - Cloned content is marked `data-clone` and `aria-hidden`, every focusable element inside a clone gets `tabindex="-1"`, and any `id` inside a clone is removed. The duplication is invisible to assistive tech, to the Tab order and to `getElementById`.
-- A clone is also `inert` while it isn't fully inside the visible box (inside the fade, when `fade` is set). Once it is fully on screen the `inert` comes off, so a pointer can click it. It stays `aria-hidden` and out of the Tab order. The check runs from positions measured on resize, not from layout reads every frame, and only writes when a clone's state flips.
+- Each direct child of a clone (each card, when one item holds many) is `inert` while it isn't fully inside the visible box (inside the fade, when `fade` is set). Once it is fully on screen the `inert` comes off, so a pointer can click it. The clone itself is never `inert`; it stays `aria-hidden` and out of the Tab order, and pressing a link inside it doesn't focus it. The check runs from positions measured on resize, not from layout reads every frame, and only writes when a child's state flips.
 - Under `prefers-reduced-motion: reduce` the loop does not run. Dragging still works, so the marquee degrades into a scrubbable strip rather than disappearing.
 
 ## Migrating from v1

@@ -20,13 +20,17 @@ Links inside the marquee are clickable.
 - **Dragging from a link or image scrubs.** Native `dragstart` is prevented
   inside the track while `drag` is on; it used to start a browser drag and fire
   `pointercancel`.
-- **Clones are clickable while fully visible.** 2.1.0 made every clone `inert`,
-  and most cards on screen at any moment are clones. A clone is now `inert` only
-  while it isn't fully inside the host's visible box (inset by the fade when
-  `fade` is set). The check runs on every paint from positions measured on
-  resize, and writes only when a clone's state flips. Clones stay `aria-hidden`,
-  and every focusable element inside a clone now gets `tabindex="-1"`, so a
-  clickable clone is still never a Tab stop or a screen-reader stop.
+- **Cards inside clones are clickable while fully visible.** 2.1.0 made every
+  clone `inert`, and most cards on screen at any moment are clones. `inert` now
+  goes on each direct child of a clone, never on the clone itself, and only
+  while that child isn't fully inside the host's visible box (inset by the fade
+  when `fade` is set). Per child, because one item often holds a whole pass of
+  cards wider than the screen, so the clone as a unit is never fully visible.
+  The check runs on every paint from positions measured on resize and rebuild,
+  and writes only when a child's state flips. Clones stay `aria-hidden`, every
+  focusable element inside a clone now gets `tabindex="-1"`, and pressing a link
+  inside a clone no longer focuses it, so a clone is still never a Tab stop, a
+  screen-reader stop or a focused aria-hidden element.
 
 ## 2.1.0
 
