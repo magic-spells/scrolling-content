@@ -362,6 +362,38 @@
 				stroke-width: 1.5;
 			}
 
+			/* ---- Link cards ---- */
+			.link-card {
+				display: flex;
+				flex-direction: column;
+				gap: 0.4rem;
+				width: 14rem;
+				padding: 1.1rem 1.3rem;
+				border: 1px solid var(--border-accent);
+				border-radius: 0.9rem;
+				background: var(--bg-card);
+				color: var(--cream-dim);
+				text-decoration: none;
+				transition: border-color 0.2s, background 0.2s;
+			}
+
+			.link-card:hover {
+				border-color: var(--accent-dim);
+				background: var(--bg-card-hover);
+			}
+
+			.link-card-index {
+				font-size: 0.75rem;
+				letter-spacing: 0.12em;
+				color: var(--accent);
+			}
+
+			.link-card-name {
+				font-family: var(--font-display);
+				font-size: 1.5rem;
+				color: var(--cream);
+			}
+
 			.wordmark {
 				font-family: var(--font-display);
 				font-size: 1.55rem;
@@ -1223,8 +1255,119 @@ marquee.<span class="hl-prop">addEventListener</span>(<span class="hl-val">'scro
 <span class="hl-cm">// edit it however you like — the clones follow on the next frame</span>
 marquee.querySelector(<span class="hl-val">'scrolling-item'</span>).textContent = <span class="hl-val">'New promo copy'</span>;
 
-<span class="hl-cm">// only your own item; clones carry data-clone, aria-hidden and inert</span>
+<span class="hl-cm">// only your own item; clones carry data-clone and aria-hidden</span>
 marquee.querySelectorAll(<span class="hl-val">'scrolling-item:not([data-clone])'</span>);</div>
+			</section>
+
+			<!-- ---- 06c Link cards ---- -->
+			<section class="demo-section">
+				<h2>Cards that are <em>links</em>.</h2>
+				<p class="demo-desc">
+					One <code>&lt;scrolling-item&gt;</code> holding seventeen link cards, wider than the screen.
+					Click any card you can see whole, clone or not. A press only becomes a drag after a few
+					pixels, so a click lands on the link, and letting go of a scrub never navigates. Cards cut
+					off by the edge are <code>inert</code> until they're fully on screen.
+				</p>
+
+				<div class="demo-stage">
+					<scrolling-content id="links-demo" speed="40" fade>
+						<scrolling-track>
+							<scrolling-item>
+								<a class="link-card" href="#card-aurora">
+									<span class="link-card-index">01</span>
+									<span class="link-card-name">Aurora</span>
+								</a>
+								<a class="link-card" href="#card-basalt">
+									<span class="link-card-index">02</span>
+									<span class="link-card-name">Basalt</span>
+								</a>
+								<a class="link-card" href="#card-cinder">
+									<span class="link-card-index">03</span>
+									<span class="link-card-name">Cinder</span>
+								</a>
+								<a class="link-card" href="#card-drift">
+									<span class="link-card-index">04</span>
+									<span class="link-card-name">Drift</span>
+								</a>
+								<a class="link-card" href="#card-ember">
+									<span class="link-card-index">05</span>
+									<span class="link-card-name">Ember</span>
+								</a>
+								<a class="link-card" href="#card-fathom">
+									<span class="link-card-index">06</span>
+									<span class="link-card-name">Fathom</span>
+								</a>
+								<a class="link-card" href="#card-glint">
+									<span class="link-card-index">07</span>
+									<span class="link-card-name">Glint</span>
+								</a>
+								<a class="link-card" href="#card-harbor">
+									<span class="link-card-index">08</span>
+									<span class="link-card-name">Harbor</span>
+								</a>
+								<a class="link-card" href="#card-isle">
+									<span class="link-card-index">09</span>
+									<span class="link-card-name">Isle</span>
+								</a>
+								<a class="link-card" href="#card-juniper">
+									<span class="link-card-index">10</span>
+									<span class="link-card-name">Juniper</span>
+								</a>
+								<a class="link-card" href="#card-kestrel">
+									<span class="link-card-index">11</span>
+									<span class="link-card-name">Kestrel</span>
+								</a>
+								<a class="link-card" href="#card-lumen">
+									<span class="link-card-index">12</span>
+									<span class="link-card-name">Lumen</span>
+								</a>
+								<a class="link-card" href="#card-meridian">
+									<span class="link-card-index">13</span>
+									<span class="link-card-name">Meridian</span>
+								</a>
+								<a class="link-card" href="#card-nimbus">
+									<span class="link-card-index">14</span>
+									<span class="link-card-name">Nimbus</span>
+								</a>
+								<a class="link-card" href="#card-obsidian">
+									<span class="link-card-index">15</span>
+									<span class="link-card-name">Obsidian</span>
+								</a>
+								<a class="link-card" href="#card-pallas">
+									<span class="link-card-index">16</span>
+									<span class="link-card-name">Pallas</span>
+								</a>
+								<a class="link-card" href="#card-quill">
+									<span class="link-card-index">17</span>
+									<span class="link-card-name">Quill</span>
+								</a>
+							</scrolling-item>
+						</scrolling-track>
+					</scrolling-content>
+				</div>
+
+				<div class="readout">
+					<div class="readout-cell">
+						<span class="readout-key">Last navigated to</span>
+						<span class="readout-val" id="links-hash">—</span>
+					</div>
+					<div class="readout-cell">
+						<span class="readout-key">Clickable clone cards</span>
+						<span class="readout-val" id="links-live">—</span>
+					</div>
+				</div>
+
+				<div class="code-block">&lt;<span class="hl-tag">scrolling-content</span> <span class="hl-attr">speed</span>=<span class="hl-val">"40"</span> <span class="hl-attr">fade</span>&gt;
+  &lt;<span class="hl-tag">scrolling-track</span>&gt;
+    &lt;<span class="hl-tag">scrolling-item</span>&gt;
+      &lt;<span class="hl-tag">a</span> <span class="hl-attr">href</span>=<span class="hl-val">"#card-aurora"</span>&gt;Aurora&lt;/<span class="hl-tag">a</span>&gt;
+      <span class="hl-cm">…sixteen more…</span>
+    &lt;/<span class="hl-tag">scrolling-item</span>&gt;
+  &lt;/<span class="hl-tag">scrolling-track</span>&gt;
+&lt;/<span class="hl-tag">scrolling-content</span>&gt;
+
+<span class="hl-cm">// inert goes on each card inside a clone, only while it is cut off</span>
+marquee.querySelectorAll(<span class="hl-val">'[data-clone] > :not([inert])'</span>);</div>
 			</section>
 
 			<!-- ---- 07 Reference ---- -->
@@ -1612,6 +1755,22 @@ marquee.querySelectorAll(<span class="hl-val">'scrolling-item:not([data-clone])'
 
 			adopt.addEventListener('scrolling-content:start', reportAdopt);
 			reportAdopt();
+			// ---- 06c Link cards ----
+			const links = document.getElementById('links-demo');
+			const linksHash = document.getElementById('links-hash');
+			const linksLive = document.getElementById('links-live');
+
+			function reportHash() {
+				if (location.hash.startsWith('#card-')) linksHash.textContent = location.hash;
+			}
+			window.addEventListener('hashchange', reportHash);
+			reportHash();
+
+			setInterval(() => {
+				linksLive.textContent = String(
+					links.querySelectorAll('scrolling-item[data-clone] > :not([inert])').length
+				);
+			}, 250);
 		</script>
 	</body>
 </html>
