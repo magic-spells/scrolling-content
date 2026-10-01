@@ -50,6 +50,32 @@ const MIN_ITEM_WIDTH = 1;
 // into tens of thousands of DOM nodes.
 const MAX_ITEMS = 200;
 
+// A press becomes a drag only once the pointer has travelled this far. Below it
+// the gesture is still a click, and the link or button under the pointer has to
+// receive it untouched — capturing on press retargeted every click to the track.
+const DRAG_THRESHOLD = 5;
+
+// Sub-pixel slack for the "is this clone fully inside the host" test, so an item
+// sitting exactly on the edge isn't flipped back and forth by rounding.
+const VISIBILITY_EPSILON = 0.5;
+
+// Everything a clone could put in the tab order. Clones are aria-hidden, and an
+// aria-hidden element must not be focusable, so each match gets tabindex="-1".
+const FOCUSABLE_SELECTOR = [
+	'a[href]',
+	'area[href]',
+	'button',
+	'input',
+	'select',
+	'textarea',
+	'iframe',
+	'summary',
+	'audio[controls]',
+	'video[controls]',
+	'[contenteditable]:not([contenteditable="false"])',
+	'[tabindex]',
+].join(',');
+
 const LEGACY_ATTRIBUTES = ['mobile-speed', 'desktop-speed', 'breakpoint'];
 let legacyWarned = false;
 
@@ -108,6 +134,8 @@ class ScrollingContent extends HTMLElement {
 	#running = false;
 	#hoverPaused = false;
 	#dragging = false;
+	#pressed = false;
+	#suppressClick = false;
 	#pointerId = null;
 	#previousTime = 0;
 	#offsetX = 0;
@@ -116,6 +144,11 @@ class ScrollingContent extends HTMLElement {
 	#containerWidth = 0;
 	#loopDistance = 0;
 	#speed = DEFAULTS.speed;
+	#trackStart = 0;
+	#itemStarts = [];
+	#itemEnds = [];
+	#visibleStart = 0;
+	#visibleEnd = 0;
 
 	static get observedAttributes() {
 		return ['speed', 'direction', 'paused', 'pause-on-hover', 'drag', 'fade'];
@@ -166,6 +199,9 @@ class ScrollingContent extends HTMLElement {
 		_.#rebuildFrame = null;
 		_.#hoverPaused = false;
 		_.#endDrag();
+		_.#pressed = false;
+		_.#pointerId = null;
+		_.#suppressClick = false;
 	}
 
 	attributeChangedCallback(name, previousValue, currentValue) {
@@ -205,6 +241,8 @@ class ScrollingContent extends HTMLElement {
 		_.#fill();
 		_.#normalizeOffset();
 		_.#paint();
+		_.#measureLayout();
+		_.#syncCloneVisibility();
 		_.#syncPlayback();
 	}
 
@@ -322,12 +360,31 @@ class ScrollingContent extends HTMLElement {
 		_.addEventListener('pointerenter', (e) => _.#onHover(e, true), { signal });
 		_.addEventListener('pointerleave', (e) => _.#onHover(e, false), { signal });
 
-		// Pointer capture routes move/up back to the track even when the pointer
-		// leaves it, so there are no window-level listeners to leak.
+		// Once a press turns into a drag, pointer capture routes move/up back to the
+		// track even when the pointer leaves it, so there are no window-level
+		// listeners to leak.
 		_.#track.addEventListener('pointerdown', (e) => _.#onPointerDown(e), { signal });
 		_.#track.addEventListener('pointermove', (e) => _.#onPointerMove(e), { signal });
 		_.#track.addEventListener('pointerup', (e) => _.#onPointerUp(e), { signal });
 		_.#track.addEventListener('pointercancel', (e) => _.#onPointerUp(e), { signal });
+		// An un-promoted press has no capture, so its pointerup can land outside the
+		// track (moved off vertically, then released). Leaving ends the press.
+		_.#track.addEventListener('pointerleave', (e) => _.#onPointerLeave(e), { signal });
+
+		// After a real scrub the browser still fires a click when the button comes
+		// up, and letting go over a link would navigate. Capture phase on the host,
+		// so it runs before any handler inside the content.
+		_.addEventListener('click', (e) => _.#onClickCapture(e), { capture: true, signal });
+
+		// Links and images are natively draggable. A native drag steals the gesture
+		// (and fires pointercancel), so it can't coexist with drag-to-scrub.
+		_.#track.addEventListener(
+			'dragstart',
+			(e) => {
+				if (_.#dragEnabled) e.preventDefault();
+			},
+			{ signal }
+		);
 
 		// A media query can change --scrolling-content-speed without the host
 		// resizing (orientation, height queries), so resize is watched in addition
@@ -424,6 +481,12 @@ class ScrollingContent extends HTMLElement {
 	 * of the tab order, and their ids are stripped so the page doesn't end up
 	 * with N copies of every id in the content.
 	 *
+	 * They are NOT permanently inert: most of what's on screen at any moment is
+	 * clones, and a marquee of links has to be clickable. A clone starts inert and
+	 * `#syncCloneVisibility()` lifts it while it sits fully inside the host. It
+	 * stays `aria-hidden` throughout, and every focusable descendant gets
+	 * `tabindex="-1"`, so a clickable clone is still never a Tab stop.
+	 *
 	 * `data-clone` marks them as ours: it is how `rebuild()` tells filler from
 	 * the author's own item, and how a framework or a test can ignore them.
 	 */
@@ -434,7 +497,101 @@ class ScrollingContent extends HTMLElement {
 		clone.inert = true;
 		clone.removeAttribute('id');
 		for (const element of clone.querySelectorAll('[id]')) element.removeAttribute('id');
+		for (const element of clone.querySelectorAll(FOCUSABLE_SELECTOR)) {
+			element.setAttribute('tabindex', '-1');
+		}
 		return clone;
+	}
+
+	/**
+	 * Record where every item sits inside the track, and the span of the host a
+	 * clone has to fit within to count as visible. Runs on refresh (resize and
+	 * content change), never per frame: the track is translated as a whole, so
+	 * from here on an item's position is just `#trackStart + #offsetX + start`.
+	 *
+	 * Positions are in the host's local px, divided out of any ancestor scale so
+	 * they're in the same units as `#offsetX`.
+	 */
+	#measureLayout() {
+		const _ = this;
+		const hostRect = _.getBoundingClientRect();
+		const trackRect = _.#track.getBoundingClientRect();
+		const scale = _.offsetWidth > 0 ? hostRect.width / _.offsetWidth || 1 : 1;
+
+		// The track's rect includes the transform #paint() just wrote, so the
+		// offset is subtracted back out to get its resting position.
+		_.#trackStart = (trackRect.left - hostRect.left) / scale - _.clientLeft - _.#offsetX;
+		_.#itemStarts = [];
+		_.#itemEnds = [];
+		for (const item of _.#items) {
+			const rect = item.getBoundingClientRect();
+			const start = (rect.left - trackRect.left) / scale;
+			_.#itemStarts.push(start);
+			_.#itemEnds.push(start + rect.width / scale);
+		}
+
+		// `overflow: hidden` clips at the padding box. Under `fade` the edges are
+		// masked, so a clone half-dissolved into the fade isn't "fully visible".
+		const fade = _.hasAttribute('fade') ? _.#resolveFade() : 0;
+		_.#visibleStart = fade;
+		_.#visibleEnd = _.clientWidth - fade;
+	}
+
+	/**
+	 * The fade width in px, from the same `--_fade` the mask is drawn with. The
+	 * value is whatever length the author wrote, so the common units are
+	 * resolved by hand; anything else (a `calc()`, `clamp()`…) counts as no fade
+	 * rather than being guessed at.
+	 */
+	#resolveFade() {
+		const value = getComputedStyle(this).getPropertyValue('--_fade').trim();
+		const match = /^(-?[\d.]+)(px|rem|em|%|vw)?$/.exec(value);
+		if (!match) return 0;
+
+		const amount = parseFloat(match[1]);
+		if (!Number.isFinite(amount)) return 0;
+		switch (match[2]) {
+			case 'rem':
+				return amount * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
+			case 'em':
+				return amount * (parseFloat(getComputedStyle(this).fontSize) || 16);
+			case '%':
+				return (amount / 100) * this.offsetWidth;
+			case 'vw':
+				return (amount / 100) * window.innerWidth;
+			default:
+				return amount;
+		}
+	}
+
+	/**
+	 * A clone is inert only while it isn't fully inside the visible box: a card
+	 * cut off by the edge can't be clicked, one the viewer can see whole can.
+	 * Runs with every paint, from positions measured on refresh — no layout reads
+	 * here — and touches the DOM only when a clone's state actually flips.
+	 *
+	 * Held while a press is in progress, so the card under the pointer can't
+	 * turn inert between pointerdown and the click it's about to receive.
+	 */
+	#syncCloneVisibility() {
+		const _ = this;
+		if (_.#pressed && !_.#dragging) return;
+
+		const measured = _.#loopDistance > 0 && _.#itemStarts.length === _.#items.length;
+		const origin = _.#trackStart + _.#offsetX;
+		const visibleStart = _.#visibleStart - VISIBILITY_EPSILON;
+		const visibleEnd = _.#visibleEnd + VISIBILITY_EPSILON;
+
+		for (let i = 0; i < _.#items.length; i++) {
+			const item = _.#items[i];
+			if (!item.hasAttribute('data-clone')) continue;
+
+			const fullyVisible =
+				measured &&
+				origin + _.#itemStarts[i] >= visibleStart &&
+				origin + _.#itemEnds[i] <= visibleEnd;
+			if (item.inert === fullyVisible) item.inert = !fullyVisible;
+		}
 	}
 
 	/** Fold the offset into (-loopDistance, 0]. */
@@ -504,6 +661,7 @@ class ScrollingContent extends HTMLElement {
 		_.#offsetX += _.direction === 'right' ? step : -step;
 		_.#normalizeOffset();
 		_.#paint();
+		_.#syncCloneVisibility();
 
 		_.#rafId = requestAnimationFrame((next) => _.#tick(next));
 	}
@@ -521,15 +679,58 @@ class ScrollingContent extends HTMLElement {
 		return this.getAttribute('drag') !== 'false';
 	}
 
+	/**
+	 * A press only records where it started. It becomes a drag in
+	 * `#onPointerMove` once it travels past DRAG_THRESHOLD; until then nothing is
+	 * captured or paused, so a plain click reaches the link under the pointer.
+	 */
 	#onPointerDown(event) {
 		const _ = this;
-		if (!_.#dragEnabled || _.#dragging || !event.isPrimary) return;
+		// Any new press disarms a swallow left over from a scrub whose release
+		// produced no click (let go outside the window).
+		_.#suppressClick = false;
+		if (!_.#dragEnabled || _.#dragging || !event.isPrimary || event.button !== 0) return;
 
-		_.#dragging = true;
+		_.#pressed = true;
 		_.#pointerId = event.pointerId;
 		_.#dragStartX = event.clientX;
+	}
+
+	#onPointerMove(event) {
+		const _ = this;
+		if (!_.#pressed || event.pointerId !== _.#pointerId) return;
+
+		if (!_.#dragging) {
+			if (Math.abs(event.clientX - _.#dragStartX) < DRAG_THRESHOLD) return;
+			_.#beginDrag(event);
+		}
+
+		_.#offsetX = _.#dragStartOffset + (event.clientX - _.#dragStartX);
+		_.#normalizeOffset();
+		_.#paint();
+		_.#syncCloneVisibility();
+	}
+
+	/**
+	 * The press has moved far enough to be a scrub. The offset is anchored HERE,
+	 * not at pointerdown — the loop may have kept moving the track in between
+	 * (touch never hover-pauses), and anchoring to the old offset would snap it
+	 * back. The pointer stays anchored at the press, so the travel spent crossing
+	 * the threshold is applied rather than lost.
+	 */
+	#beginDrag(event) {
+		const _ = this;
+		_.#dragging = true;
 		_.#dragStartOffset = _.#offsetX;
 		_.setAttribute('dragging', '');
+
+		// The press may already have started a text selection before
+		// `user-select: none` arrived with the dragging attribute.
+		const selection = window.getSelection?.();
+		if (selection && !selection.isCollapsed && _.contains(selection.anchorNode)) {
+			selection.removeAllRanges();
+		}
+
 		_.#syncPlayback();
 		_.#emit('drag-start');
 
@@ -544,18 +745,36 @@ class ScrollingContent extends HTMLElement {
 		}
 	}
 
-	#onPointerMove(event) {
+	#onPointerUp(event) {
 		const _ = this;
-		if (!_.#dragging || event.pointerId !== _.#pointerId) return;
+		if (!_.#pressed || event.pointerId !== _.#pointerId) return;
 
-		_.#offsetX = _.#dragStartOffset + (event.clientX - _.#dragStartX);
-		_.#normalizeOffset();
-		_.#paint();
+		// Only a completed scrub is followed by a click worth swallowing; a
+		// cancelled one gets no click at all, so arming here would eat the next
+		// real one.
+		const wasDragging = _.#dragging;
+		_.#pressed = false;
+		_.#endDrag();
+		_.#pointerId = null;
+		if (wasDragging && event.type === 'pointerup') _.#suppressClick = true;
+		_.#syncCloneVisibility();
 	}
 
-	#onPointerUp(event) {
-		if (!this.#dragging || event.pointerId !== this.#pointerId) return;
-		this.#endDrag();
+	#onPointerLeave(event) {
+		const _ = this;
+		if (!_.#pressed || _.#dragging || event.pointerId !== _.#pointerId) return;
+		_.#pressed = false;
+		_.#pointerId = null;
+		_.#syncCloneVisibility();
+	}
+
+	/** One-shot: swallow the click that follows a scrub, then disarm. */
+	#onClickCapture(event) {
+		// `detail` is 0 for a keyboard-activated click, which no scrub precedes.
+		if (!this.#suppressClick || event.detail === 0) return;
+		this.#suppressClick = false;
+		event.preventDefault();
+		event.stopPropagation();
 	}
 
 	#endDrag() {
@@ -566,7 +785,6 @@ class ScrollingContent extends HTMLElement {
 			_.#track.releasePointerCapture(_.#pointerId);
 		}
 		_.#dragging = false;
-		_.#pointerId = null;
 		_.removeAttribute('dragging');
 		_.#syncPlayback();
 		_.#emit('drag-end');

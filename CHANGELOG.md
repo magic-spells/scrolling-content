@@ -4,7 +4,29 @@ All notable changes to this project are documented here.
 
 ## 2.1.1
 
-Patch release. In progress.
+Links inside the marquee are clickable.
+
+### Fixed
+
+- **A click on a link inside the track no longer dies.** `pointerdown` used to
+  enter the drag and take pointer capture immediately, which retargeted every
+  click to the track. A press now becomes a drag only after it moves 5px; below
+  that it is a plain click and reaches the link untouched. Capture, the
+  `dragging` attribute, the pause and `scrolling-content:drag-start` all move to
+  the threshold crossing.
+- **Letting go of a scrub over a link doesn't navigate.** The click the browser
+  fires after a real drag is swallowed once, in the capture phase. A cancelled
+  gesture arms nothing, and the next press disarms it.
+- **Dragging from a link or image scrubs.** Native `dragstart` is prevented
+  inside the track while `drag` is on; it used to start a browser drag and fire
+  `pointercancel`.
+- **Clones are clickable while fully visible.** 2.1.0 made every clone `inert`,
+  and most cards on screen at any moment are clones. A clone is now `inert` only
+  while it isn't fully inside the host's visible box (inset by the fade when
+  `fade` is set). The check runs on every paint from positions measured on
+  resize, and writes only when a clone's state flips. Clones stay `aria-hidden`,
+  and every focusable element inside a clone now gets `tabindex="-1"`, so a
+  clickable clone is still never a Tab stop or a screen-reader stop.
 
 ## 2.1.0
 

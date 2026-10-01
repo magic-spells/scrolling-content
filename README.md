@@ -15,6 +15,7 @@ No dependencies. ~2.5 kB gzipped.
 - Hover to pause, drag to scrub, both opt-out-able
 - Optional edge fade so content dissolves instead of clipping
 - Respects `prefers-reduced-motion`
+- Links and buttons inside the marquee stay clickable, clones included
 - Clones are hidden from assistive tech and stripped of `id`s
 - Styles ship in a cascade layer, so plain author CSS overrides them
 - No dependencies, no Shadow DOM, no build step required
@@ -219,11 +220,12 @@ Measurement is driven by a `ResizeObserver` on both the host and the first item,
 
 Pause-on-hover listens for `pointerenter`/`pointerleave` and acts only when `pointerType` is `mouse`. Touch has no hover: a tap fires a compatibility `mouseenter` with no matching `mouseleave`, which would pause the marquee forever on the first tap.
 
-Dragging uses pointer capture, so a gesture survives leaving the element without any window-level listeners. On touch, `touch-action: pan-y` lets the browser arbitrate: vertical swipes scroll the page, horizontal ones scrub the track.
+A press becomes a drag only after the pointer moves about 5px. Below that it is a plain click and reaches whatever is under the pointer, so a marquee of links or cards works as links. Once it is a drag, the track takes pointer capture, so the gesture survives leaving the element without any window-level listeners, and the click the browser fires on release is swallowed, so letting go over a link doesn't navigate. Native link and image dragging is disabled inside the track while `drag` is on. On touch, `touch-action: pan-y` lets the browser arbitrate: vertical swipes scroll the page, horizontal ones scrub the track.
 
 ## Accessibility
 
-- Cloned content is marked `data-clone`, `aria-hidden` and `inert`, and any `id` inside a clone is removed — the duplication is invisible to assistive tech and to `getElementById`.
+- Cloned content is marked `data-clone` and `aria-hidden`, every focusable element inside a clone gets `tabindex="-1"`, and any `id` inside a clone is removed. The duplication is invisible to assistive tech, to the Tab order and to `getElementById`.
+- A clone is also `inert` while it isn't fully inside the visible box (inside the fade, when `fade` is set). Once it is fully on screen the `inert` comes off, so a pointer can click it. It stays `aria-hidden` and out of the Tab order. The check runs from positions measured on resize, not from layout reads every frame, and only writes when a clone's state flips.
 - Under `prefers-reduced-motion: reduce` the loop does not run. Dragging still works, so the marquee degrades into a scrubbable strip rather than disappearing.
 
 ## Migrating from v1
