@@ -2,6 +2,10 @@
 
 All notable changes to this project are documented here.
 
+## 2.1.1
+
+Patch release. In progress.
+
 ## 2.1.0
 
 Adoption and live content. The component was already capable of using markup you

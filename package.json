@@ -1,6 +1,6 @@
 {
 	"name": "@magic-spells/scrolling-content",
-	"version": "2.1.0",
+	"version": "2.1.1",
 	"description": "Infinite scrolling marquee web component — hover to pause, drag to scrub, no dependencies",
 	"author": "Cory Schulz",
 	"license": "MIT",
