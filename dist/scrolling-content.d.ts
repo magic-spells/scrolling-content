@@ -21,8 +21,9 @@
  * This is the supported framework-friendly form. When the track and the item
  * are already present the component moves nothing — it measures the authored
  * item and appends clones after it, each marked `data-clone` alongside
- * `aria-hidden` and `inert`. A framework that owns its rendered DOM can keep
- * patching the source item; edits to it rebuild the clones automatically. Loose
+ * `aria-hidden`, with focusable descendants set to `tabindex="-1"`. Each direct
+ * child of a clone is `inert` only while it isn't fully inside the visible box.
+ * A framework that owns its rendered DOM can keep patching the source item; edits to it rebuild the clones automatically. Loose
  * children are still wrapped in a `<scrolling-item>` for plain-HTML authors.
  *
  * Attribute-only options (no matching property): `pause-on-hover="false"`,
